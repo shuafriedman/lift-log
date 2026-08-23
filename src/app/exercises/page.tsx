@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import ExerciseDialog from "./exercise-dialog";
 import { handleError } from "@/components/error-handle";
 import { MdFitnessCenter, MdDelete } from "react-icons/md";
 import { BiDumbbell } from "react-icons/bi";
 import { AiOutlineCheckCircle } from "react-icons/ai";
 import { Camera, ImageOff } from "lucide-react";
+import CountStepper from "@/components/count-stepper";
 import CameraCapture from "@/components/camera-capture";
 import {
   exercisePhotoUrl,
@@ -115,6 +116,47 @@ export default function Exercise() {
     }
   };
 
+  const saveTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(
+    new Map()
+  );
+
+  const persistSetsReps = (id: number, sets: number, reps: number) => {
+    const prev = saveTimers.current.get(id);
+    if (prev) clearTimeout(prev);
+    saveTimers.current.set(
+      id,
+      setTimeout(async () => {
+        try {
+          const res = await fetch("/api/exercise", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id, sets, reps }),
+          });
+          if (!res.ok) throw new Error("Failed to update exercise");
+        } catch (error) {
+          const err = handleError(error);
+          setError(typeof err === "string" ? err : "Could not save sets/reps.");
+          try {
+            const refresh = await fetch("/api/exercise");
+            const data = await refresh.json();
+            const list = Array.isArray(data) ? data : data.exercises;
+            if (Array.isArray(list)) setExercises(list);
+          } catch {
+            /* keep the optimistic values if the refetch also fails */
+          }
+        }
+      }, 350)
+    );
+  };
+
+  const updateSetsReps = (id: number, patch: { sets?: number; reps?: number }) => {
+    const current = exercises.find((ex) => ex.id === id);
+    if (!current) return;
+    const next = { ...current, ...patch };
+    setExercises((prev) => prev.map((ex) => (ex.id === id ? next : ex)));
+    persistSetsReps(id, next.sets, next.reps);
+  };
+
   const handleRemovePhoto = async (id: number) => {
     try {
       const res = await fetch(`/api/exercise/${id}/photo`, { method: "DELETE" });
@@ -132,6 +174,10 @@ export default function Exercise() {
 
   useEffect(() => {
     fetchExercises();
+    const timers = saveTimers.current;
+    return () => {
+      timers.forEach(clearTimeout);
+    };
   }, []);
 
   if (loading) {
@@ -287,23 +333,22 @@ export default function Exercise() {
                       </div>
                     )}
 
-                    {/* Sets / reps / volume in one compact row. */}
-                    <div className="grid grid-cols-3 gap-2 text-center">
-                      <div className="rounded-xl border border-neutral-800 p-2.5">
-                        <p className="text-[11px] text-neutral-400">Sets</p>
-                        <p className="text-xl font-bold">{ex.sets || 0}</p>
-                      </div>
-                      <div className="rounded-xl border border-neutral-800 p-2.5">
-                        <p className="text-[11px] text-neutral-400">Reps</p>
-                        <p className="text-xl font-bold">{ex.reps || 0}</p>
-                      </div>
-                      <div className="rounded-xl border border-neutral-800 p-2.5">
-                        <p className="text-[11px] text-neutral-400">Volume</p>
-                        <p className="text-xl font-bold">
-                          {(ex.sets || 0) * (ex.reps || 0)}
-                        </p>
-                      </div>
+                    {/* Sets / reps are the prescription — tap +/- to change. */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <CountStepper
+                        label="Sets"
+                        value={ex.sets || 0}
+                        onChange={(sets) => updateSetsReps(ex.id, { sets })}
+                      />
+                      <CountStepper
+                        label="Reps"
+                        value={ex.reps || 0}
+                        onChange={(reps) => updateSetsReps(ex.id, { reps })}
+                      />
                     </div>
+                    <p className="mt-2 text-center text-xs text-neutral-500">
+                      Volume {(ex.sets || 0) * (ex.reps || 0)}
+                    </p>
                   </div>
                 </div>
               );

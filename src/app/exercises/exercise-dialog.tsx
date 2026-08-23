@@ -34,8 +34,8 @@ export default function ExerciseDialog({ onsuccess }: ExerciseDialogProps) {
   const [name, setName] = useState("");
   const [catalogId, setCatalogId] = useState<string | null>(null);
   const [catalogImage, setCatalogImage] = useState<string | null>(null);
-  const [sets, setSets] = useState("");
-  const [reps, setReps] = useState("");
+  const [sets, setSets] = useState("3");
+  const [reps, setReps] = useState("10");
   const [loading, setLoading] = useState(false);
   // Photo taken before the exercise exists — uploaded right after it's created.
   const [pendingPhoto, setPendingPhoto] = useState<ProcessedPhoto | null>(null);
@@ -123,8 +123,8 @@ export default function ExerciseDialog({ onsuccess }: ExerciseDialogProps) {
       setCatalogId(null);
       setCatalogImage(null);
       setPendingPhoto(null);
-      setSets("");
-      setReps("");
+      setSets("3");
+      setReps("10");
       onsuccess?.();
       setTimeout(() => {
         setOpen(false);
@@ -154,8 +154,8 @@ export default function ExerciseDialog({ onsuccess }: ExerciseDialogProps) {
     setCatalogImage(null);
     setPendingPhoto(null);
     setCameraOpen(false);
-    setSets("");
-    setReps("");
+    setSets("3");
+    setReps("10");
     setMessage("");
     setMode("library");
   };

@@ -5,32 +5,42 @@ import WorkoutDialog from "./workout-dialog";
 import { handleError } from "@/components/error-handle";
 import LogoLoading from "../logo-loading/page";
 import LiftLogMark from "@/components/lift-log-mark";
-import { ChevronRight, X } from "lucide-react";
+import ConfirmSheet from "@/components/confirm-sheet";
+import { ChevronRight, Trash2, X } from "lucide-react";
 
 interface Exercise {
-  id: string;
+  id: number;
   name: string;
+  sets: number;
+  reps: number;
 }
 
 interface WorkoutExercise {
-  id: string;
+  exerciseId: number;
   Exercise: Exercise;
 }
 
 interface Workout {
-  id: string;
+  id: number;
   name: string;
   workoutExercises: WorkoutExercise[];
 }
 
 export default function WorkoutsPage() {
   const [workouts, setWorkouts] = useState<Workout[]>([]);
-  const [open, setOpen] = useState<boolean>(false);
+  const [open, setOpen] = useState(false);
   const [workout, setWorkout] = useState<Workout>();
   const [status, setStatus] = useState<
     "idle" | "loading" | "error" | "success"
   >("idle");
   const [errorMessage, setErrorMessage] = useState("");
+  const [pendingDelete, setPendingDelete] = useState<Workout | null>(null);
+  const [pendingRemove, setPendingRemove] = useState<{
+    workoutId: number;
+    exerciseId: number;
+    name: string;
+  } | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const fetchWorkouts = useCallback(async () => {
     setStatus("loading");
@@ -43,13 +53,67 @@ export default function WorkoutsPage() {
       setStatus("success");
     } catch (error) {
       handleError(error);
+      setStatus("error");
+      setErrorMessage("Failed to load workouts");
     }
   }, []);
 
-  const viewDetails = useCallback((workout: Workout) => {
-    setWorkout(workout);
-    setOpen(true)
-  }, [])
+  const viewDetails = useCallback((next: Workout) => {
+    setWorkout(next);
+    setOpen(true);
+  }, []);
+
+  const deleteWorkout = useCallback(async () => {
+    if (!pendingDelete) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/workout?id=${pendingDelete.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed to delete workout");
+      setWorkouts((prev) => prev.filter((w) => w.id !== pendingDelete.id));
+      if (workout?.id === pendingDelete.id) {
+        setOpen(false);
+        setWorkout(undefined);
+      }
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setBusy(false);
+      setPendingDelete(null);
+    }
+  }, [pendingDelete, workout?.id]);
+
+  const removeExercise = useCallback(async () => {
+    if (!pendingRemove) return;
+    setBusy(true);
+    try {
+      const res = await fetch(
+        `/api/workout?id=${pendingRemove.workoutId}&exerciseId=${pendingRemove.exerciseId}`,
+        { method: "DELETE" }
+      );
+      if (!res.ok) throw new Error("Failed to remove exercise");
+      const drop = (w: Workout): Workout => ({
+        ...w,
+        workoutExercises: w.workoutExercises.filter(
+          (we) =>
+            we.exerciseId !== pendingRemove.exerciseId &&
+            we.Exercise?.id !== pendingRemove.exerciseId
+        ),
+      });
+      setWorkouts((prev) =>
+        prev.map((w) => (w.id === pendingRemove.workoutId ? drop(w) : w))
+      );
+      setWorkout((prev) =>
+        prev && prev.id === pendingRemove.workoutId ? drop(prev) : prev
+      );
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setBusy(false);
+      setPendingRemove(null);
+    }
+  }, [pendingRemove]);
 
   useEffect(() => {
     fetchWorkouts();
@@ -62,7 +126,6 @@ export default function WorkoutsPage() {
   return (
     <div className="px-4 py-5 md:p-8">
       <div className="mx-auto max-w-7xl">
-        {/* Header */}
         <header
           className="mb-5 flex items-center gap-3"
           aria-label="Workouts header"
@@ -87,7 +150,6 @@ export default function WorkoutsPage() {
           <WorkoutDialog onWorkoutCreated={fetchWorkouts} />
         </div>
 
-        {/* Error */}
         {status === "error" && (
           <section
             className="mb-6 text-center text-red-400"
@@ -105,7 +167,6 @@ export default function WorkoutsPage() {
           </section>
         )}
 
-        {/* Empty State */}
         {!errorMessage && workouts.length === 0 && (
           <section
             className="rounded-2xl border border-neutral-800 bg-neutral-950 px-6 py-10 text-center"
@@ -120,58 +181,68 @@ export default function WorkoutsPage() {
           </section>
         )}
 
-        {/* Workout list */}
         {!errorMessage && workouts.length > 0 && (
           <section
             className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
             aria-label="List of workouts"
           >
             {workouts.map((w, index) => (
-              /* The card itself opens the detail sheet. It used to hide a
-                 "View Details" button behind :hover, so on a touch screen
-                 there was no way to open a workout at all. */
-              <button
+              <article
                 key={w.id}
-                type="button"
-                onClick={() => viewDetails(w)}
-                aria-labelledby={`workout-title-${w.id}`}
-                className="tap-scale w-full rounded-2xl border border-teal-950 p-4 text-left shadow-lg backdrop-blur-xl"
+                className="flex items-stretch rounded-2xl border border-teal-950 shadow-lg backdrop-blur-xl"
                 style={{
                   animation: `fadeIn 0.4s ease-out ${Math.min(index, 6) * 0.06}s both`,
                 }}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <h3
-                    id={`workout-title-${w.id}`}
-                    className="min-w-0 flex-1 text-lg font-semibold tracking-tight"
-                  >
-                    {w.name}
-                  </h3>
+                <button
+                  type="button"
+                  onClick={() => viewDetails(w)}
+                  aria-labelledby={`workout-title-${w.id}`}
+                  className="tap-scale min-w-0 flex-1 p-4 text-left"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <h3
+                      id={`workout-title-${w.id}`}
+                      className="min-w-0 flex-1 text-lg font-semibold tracking-tight"
+                    >
+                      {w.name}
+                    </h3>
 
-                  <span className="shrink-0 rounded-full border px-2.5 py-1 text-[11px] whitespace-nowrap">
-                    {w.workoutExercises?.length || 0}{" "}
-                    {w.workoutExercises?.length === 1 ? "exercise" : "exercises"}
+                    <span className="shrink-0 rounded-full border px-2.5 py-1 text-[11px] whitespace-nowrap">
+                      {w.workoutExercises?.length || 0}{" "}
+                      {w.workoutExercises?.length === 1
+                        ? "exercise"
+                        : "exercises"}
+                    </span>
+                  </div>
+
+                  <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-neutral-400">
+                    {w.workoutExercises?.length
+                      ? w.workoutExercises
+                          .map((we) => we.Exercise?.name || "Unnamed Exercise")
+                          .join(", ")
+                      : "No exercises yet"}
+                  </p>
+
+                  <span className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-emerald-400">
+                    View details <ChevronRight className="h-4 w-4" />
                   </span>
-                </div>
+                </button>
 
-                <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-neutral-400">
-                  {w.workoutExercises?.length
-                    ? w.workoutExercises
-                        .map((we) => we.Exercise?.name || "Unnamed Exercise")
-                        .join(", ")
-                    : "No exercises yet"}
-                </p>
-
-                <span className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-emerald-400">
-                  View details <ChevronRight className="h-4 w-4" />
-                </span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setPendingDelete(w)}
+                  className="touch-target tap-scale m-2 flex shrink-0 items-center justify-center self-center rounded-xl text-neutral-500 active:text-red-400"
+                  aria-label={`Delete ${w.name}`}
+                >
+                  <Trash2 className="h-5 w-5" />
+                </button>
+              </article>
             ))}
           </section>
         )}
       </div>
 
-      {/* Detail sheet: bottom-anchored on mobile, centred from `sm` up. */}
       {open && workout && (
         <div
           className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center"
@@ -199,21 +270,81 @@ export default function WorkoutsPage() {
             </p>
             {workout.workoutExercises?.length ? (
               <ul className="space-y-2">
-                {workout.workoutExercises.map((we) => (
-                  <li
-                    key={`${we.id}-${we.Exercise.id}`}
-                    className="rounded-xl border border-neutral-800 px-4 py-3"
-                  >
-                    {we.Exercise?.name}
-                  </li>
-                ))}
+                {workout.workoutExercises.map((we) => {
+                  const exerciseId = we.exerciseId ?? we.Exercise.id;
+                  return (
+                    <li
+                      key={`${workout.id}-${exerciseId}`}
+                      className="flex items-center gap-2 rounded-xl border border-neutral-800 px-4 py-3"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium">{we.Exercise?.name}</p>
+                        {(we.Exercise?.sets || we.Exercise?.reps) ? (
+                          <p className="text-xs text-neutral-500">
+                            {we.Exercise.sets} × {we.Exercise.reps}
+                          </p>
+                        ) : null}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPendingRemove({
+                            workoutId: workout.id,
+                            exerciseId,
+                            name: we.Exercise?.name ?? "this exercise",
+                          })
+                        }
+                        className="touch-target tap-scale flex shrink-0 items-center justify-center rounded-xl text-neutral-500 active:text-red-400"
+                        aria-label={`Remove ${we.Exercise?.name}`}
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             ) : (
               <p className="text-sm text-neutral-500">No exercises yet.</p>
             )}
+
+            <button
+              type="button"
+              onClick={() => setPendingDelete(workout)}
+              className="tap-scale mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-red-900/60 font-semibold text-red-400 active:bg-red-950"
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete workout
+            </button>
           </div>
         </div>
       )}
+
+      <ConfirmSheet
+        open={pendingDelete !== null}
+        title="Delete this workout?"
+        body={
+          pendingDelete
+            ? `"${pendingDelete.name}" will be removed. The exercises themselves stay in your library.`
+            : undefined
+        }
+        busy={busy}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={deleteWorkout}
+      />
+
+      <ConfirmSheet
+        open={pendingRemove !== null}
+        title="Remove this exercise?"
+        body={
+          pendingRemove
+            ? `"${pendingRemove.name}" will be taken off this workout.`
+            : undefined
+        }
+        confirmLabel="Remove"
+        busy={busy}
+        onCancel={() => setPendingRemove(null)}
+        onConfirm={removeExercise}
+      />
 
       <style jsx>{`
         @keyframes fadeIn {

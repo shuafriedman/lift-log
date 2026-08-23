@@ -41,6 +41,7 @@ export default function SessionsPage() {
   );
   const [starting, setStarting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchSessions = useCallback(async () => {
     try {
@@ -79,6 +80,7 @@ export default function SessionsPage() {
   }, [router]);
 
   const deleteSession = useCallback(async (id: number) => {
+    setDeleting(true);
     try {
       const res = await fetch(`/api/session/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete session");
@@ -86,6 +88,7 @@ export default function SessionsPage() {
     } catch (error) {
       handleError(error);
     } finally {
+      setDeleting(false);
       setConfirmDelete(null);
     }
   }, []);
@@ -216,15 +219,13 @@ export default function SessionsPage() {
                     </button>
 
                     <div className="flex shrink-0 flex-col items-center justify-center gap-1 pr-2">
-                      {!isActive && (
-                        <button
-                          onClick={() => setConfirmDelete(s.id)}
-                          className="touch-target tap-scale flex items-center justify-center rounded-xl text-neutral-500 active:text-red-400"
-                          aria-label={`Delete session ${s.name ?? ""}`}
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </button>
-                      )}
+                      <button
+                        onClick={() => setConfirmDelete(s.id)}
+                        className="touch-target tap-scale flex items-center justify-center rounded-xl text-neutral-500 active:text-red-400"
+                        aria-label={`Delete session ${s.name ?? ""}`}
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </button>
                       <ChevronRight className="h-5 w-5 shrink-0 text-neutral-600" />
                     </div>
                   </div>
@@ -237,8 +238,18 @@ export default function SessionsPage() {
 
       <ConfirmSheet
         open={confirmDelete !== null}
-        title="Delete this session?"
+        title={
+          sessions.find((s) => s.id === confirmDelete)?.endedAt === null
+            ? "Discard this session?"
+            : "Delete this session?"
+        }
         body="This removes the session and everything logged in it. It can't be undone."
+        confirmLabel={
+          sessions.find((s) => s.id === confirmDelete)?.endedAt === null
+            ? "Discard"
+            : "Delete"
+        }
+        busy={deleting}
         onCancel={() => setConfirmDelete(null)}
         onConfirm={() => confirmDelete !== null && deleteSession(confirmDelete)}
       />

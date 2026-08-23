@@ -7,6 +7,8 @@ import { handleError } from "@/components/error-handle";
 import LogoLoading from "../../logo-loading/page";
 import AddExerciseDialog from "./add-exercise-dialog";
 import { CheckCircle2, Trash2, Dumbbell } from "lucide-react";
+import ConfirmSheet from "@/components/confirm-sheet";
+import NumberStepper from "@/components/number-stepper";
 
 interface SessionEntry {
   id: number;
@@ -60,6 +62,14 @@ export default function SessionDetailPage({
   );
   const [finishing, setFinishing] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
+  const [pendingRemove, setPendingRemove] = useState<SessionEntry | null>(null);
+  const [pendingDeleteSession, setPendingDeleteSession] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [editing, setEditing] = useState<SessionEntry | null>(null);
+  const [editSets, setEditSets] = useState("");
+  const [editReps, setEditReps] = useState("");
+  const [editWeight, setEditWeight] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const fetchSession = useCallback(async () => {
     try {
@@ -138,19 +148,67 @@ export default function SessionDetailPage({
 
   const removeEntry = useCallback(
     async (entryId: number) => {
+      setDeleting(true);
       try {
         const res = await fetch(
           `/api/session/${id}/exercise?entryId=${entryId}`,
           { method: "DELETE" }
         );
         if (!res.ok) throw new Error("Failed to remove exercise");
+        setPendingRemove(null);
         fetchSession();
       } catch (error) {
         handleError(error);
+      } finally {
+        setDeleting(false);
       }
     },
     [id, fetchSession]
   );
+
+  const deleteSession = useCallback(async () => {
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/session/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete session");
+      router.push("/sessions");
+    } catch (error) {
+      handleError(error);
+      setDeleting(false);
+      setPendingDeleteSession(false);
+    }
+  }, [id, router]);
+
+  const openEdit = (entry: SessionEntry) => {
+    setEditing(entry);
+    setEditSets(entry.sets != null ? String(entry.sets) : "");
+    setEditReps(entry.reps != null ? String(entry.reps) : "");
+    setEditWeight(entry.weight != null ? String(entry.weight) : "");
+  };
+
+  const saveEdit = useCallback(async () => {
+    if (!editing) return;
+    setSavingEdit(true);
+    try {
+      const res = await fetch(`/api/session/${id}/exercise`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          entryId: editing.id,
+          sets: editSets === "" ? null : Number(editSets),
+          reps: editReps === "" ? null : Number(editReps),
+          weight: editWeight === "" ? null : Number(editWeight),
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to update exercise");
+      setEditing(null);
+      fetchSession();
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setSavingEdit(false);
+    }
+  }, [editing, editSets, editReps, editWeight, id, fetchSession]);
 
   const finishSession = useCallback(async () => {
     setFinishing(true);
@@ -265,7 +323,12 @@ export default function SessionDetailPage({
                   </div>
                 )}
 
-                <div className="min-w-0 flex-1">
+                <button
+                  type="button"
+                  onClick={() => isActive && openEdit(entry)}
+                  disabled={!isActive}
+                  className="min-w-0 flex-1 text-left disabled:cursor-default"
+                >
                   <h4 className="truncate font-semibold">{entry.name}</h4>
                   <p className="text-sm text-neutral-400">
                     {[
@@ -279,14 +342,13 @@ export default function SessionDetailPage({
                       entry.weight != null ? `${entry.weight} kg` : null,
                     ]
                       .filter(Boolean)
-                      .join("  ·  ") || "No details"}
+                      .join("  ·  ") || (isActive ? "Tap to set sets/reps" : "No details")}
                   </p>
-                </div>
+                </button>
 
                 {isActive && (
                   <button
-                    onClick={() => removeEntry(entry.id)}
-                    /* Was hover-only, which meant invisible on every phone. */
+                    onClick={() => setPendingRemove(entry)}
                     className="touch-target tap-scale flex shrink-0 items-center justify-center rounded-xl text-neutral-500 active:text-red-400"
                     aria-label={`Remove ${entry.name}`}
                   >
@@ -296,6 +358,17 @@ export default function SessionDetailPage({
               </article>
             ))}
           </section>
+        )}
+
+        {isActive && (
+          <button
+            type="button"
+            onClick={() => setPendingDeleteSession(true)}
+            className="tap-scale mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold text-neutral-500 active:text-red-400"
+          >
+            <Trash2 className="h-4 w-4" />
+            Discard session
+          </button>
         )}
       </div>
 
@@ -313,6 +386,100 @@ export default function SessionDetailPage({
           </button>
         </div>
       )}
+
+      {!isActive && (
+        <div className="mx-auto mt-6 max-w-3xl">
+          <button
+            type="button"
+            onClick={() => setPendingDeleteSession(true)}
+            className="tap-scale flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-red-900/60 font-semibold text-red-400 active:bg-red-950"
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete session
+          </button>
+        </div>
+      )}
+
+      {editing && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center"
+          onClick={() => !savingEdit && setEditing(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="w-full rounded-t-2xl border-t border-neutral-800 bg-neutral-900 p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:max-w-sm sm:rounded-2xl sm:border sm:pb-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="mb-4 text-lg font-bold">{editing.name}</h2>
+            <div className="space-y-3">
+              <NumberStepper
+                label="Sets"
+                value={editSets}
+                onChange={setEditSets}
+                placeholder="3"
+                disabled={savingEdit}
+              />
+              <NumberStepper
+                label="Reps"
+                value={editReps}
+                onChange={setEditReps}
+                placeholder="10"
+                disabled={savingEdit}
+              />
+              <NumberStepper
+                label="Weight"
+                value={editWeight}
+                onChange={setEditWeight}
+                placeholder="0"
+                decimal
+                step={2.5}
+                disabled={savingEdit}
+              />
+            </div>
+            <div className="mt-5 flex flex-col gap-2">
+              <button
+                onClick={saveEdit}
+                disabled={savingEdit}
+                className="tap-scale h-12 rounded-xl bg-emerald-600 font-semibold text-white disabled:opacity-60"
+              >
+                {savingEdit ? "Saving…" : "Save"}
+              </button>
+              <button
+                onClick={() => setEditing(null)}
+                disabled={savingEdit}
+                className="tap-scale h-12 rounded-xl border border-neutral-700 font-semibold"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ConfirmSheet
+        open={pendingRemove !== null}
+        title="Remove this exercise?"
+        body={
+          pendingRemove
+            ? `"${pendingRemove.name}" will be removed from this session.`
+            : undefined
+        }
+        confirmLabel="Remove"
+        busy={deleting}
+        onCancel={() => setPendingRemove(null)}
+        onConfirm={() => pendingRemove && removeEntry(pendingRemove.id)}
+      />
+
+      <ConfirmSheet
+        open={pendingDeleteSession}
+        title={isActive ? "Discard this session?" : "Delete this session?"}
+        body="This removes the session and everything logged in it. It can't be undone."
+        confirmLabel={isActive ? "Discard" : "Delete"}
+        busy={deleting}
+        onCancel={() => setPendingDeleteSession(false)}
+        onConfirm={deleteSession}
+      />
     </div>
   );
 }

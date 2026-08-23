@@ -77,3 +77,56 @@ export async function POST(req: NextRequest) {
     }
   }
 }
+
+// DELETE ?id= — remove the workout (and unlink it from progress).
+// DELETE ?id=&exerciseId= — pull one exercise out of the workout.
+export async function DELETE(req: NextRequest) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session)
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = Number(searchParams.get("id"));
+    const exerciseIdParam = searchParams.get("exerciseId");
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Workout ID is required" },
+        { status: 400 }
+      );
+    }
+
+    const workout = await prisma.workout.findFirst({
+      where: { id, userId: session.user.id },
+    });
+    if (!workout) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    if (exerciseIdParam) {
+      const exerciseId = Number(exerciseIdParam);
+      await prisma.workoutExercise.deleteMany({
+        where: { workoutId: id, exerciseId },
+      });
+      return NextResponse.json({ message: "Exercise removed" }, { status: 200 });
+    }
+
+    await prisma.$transaction([
+      prisma.progress.updateMany({
+        where: { workoutId: id, userId: session.user.id },
+        data: { workoutId: null },
+      }),
+      prisma.workoutExercise.deleteMany({ where: { workoutId: id } }),
+      prisma.workout.delete({ where: { id } }),
+    ]);
+
+    return NextResponse.json({ message: "Workout deleted" }, { status: 200 });
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      console.error(error.message);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ error: "Unexpected error" }, { status: 500 });
+  }
+}

@@ -1,7 +1,7 @@
 import { handleError } from "@/components/error-handle";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { exerciseSchema } from "@/lib/validation";
+import { exerciseSchema, exerciseUpdateSchema } from "@/lib/validation";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -120,6 +120,58 @@ export async function POST(req: NextRequest) {
       message: "Exercise created successfully",
       exercise: created,
     });
+  } catch (error: unknown) {
+    const err = handleError(error);
+    return NextResponse.json(err, { status: 500 });
+  }
+}
+
+// PATCH: update sets/reps (or name) on an existing library exercise
+export async function PATCH(req: NextRequest) {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session)
+    return NextResponse.json({ message: "Invalid User" }, { status: 401 });
+
+  try {
+    const body = await req.json();
+    const data = exerciseUpdateSchema.parse(body);
+
+    const exercise = await prisma.exercise.findUnique({
+      where: { id: data.id },
+    });
+    if (!exercise || exercise.userId !== session.user.id) {
+      return NextResponse.json(
+        { message: "Exercise not found or not authorized" },
+        { status: 404 }
+      );
+    }
+
+    if (data.name && data.name !== exercise.name) {
+      const clash = await prisma.exercise.findFirst({
+        where: {
+          userId: session.user.id,
+          name: data.name,
+          NOT: { id: exercise.id },
+        },
+      });
+      if (clash) {
+        return NextResponse.json(
+          { message: "Exercise with this name already exists." },
+          { status: 400 }
+        );
+      }
+    }
+
+    const updated = await prisma.exercise.update({
+      where: { id: exercise.id },
+      data: {
+        ...(data.name !== undefined ? { name: data.name } : {}),
+        ...(data.sets !== undefined ? { sets: data.sets } : {}),
+        ...(data.reps !== undefined ? { reps: data.reps } : {}),
+      },
+    });
+
+    return NextResponse.json({ exercise: updated });
   } catch (error: unknown) {
     const err = handleError(error);
     return NextResponse.json(err, { status: 500 });

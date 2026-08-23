@@ -15,6 +15,7 @@ import { MdFitnessCenter } from "react-icons/md";
 import { FiSearch } from "react-icons/fi";
 import { Library, PenLine, X, ArrowLeft, Plus } from "lucide-react";
 import { BiDumbbell } from "react-icons/bi";
+import NumberStepper from "@/components/number-stepper";
 import ExercisePicker, {
   type CatalogItem,
 } from "@/app/exercises/exercise-picker";
@@ -51,8 +52,8 @@ export default function AddExerciseDialog({
   const [catalogId, setCatalogId] = useState<string | null>(null);
   const [catalogImage, setCatalogImage] = useState<string | null>(null);
 
-  const [sets, setSets] = useState("");
-  const [reps, setReps] = useState("");
+  const [sets, setSets] = useState("3");
+  const [reps, setReps] = useState("10");
   const [weight, setWeight] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -84,8 +85,8 @@ export default function AddExerciseDialog({
     setName("");
     setCatalogId(null);
     setCatalogImage(null);
-    setSets("");
-    setReps("");
+    setSets("3");
+    setReps("10");
     setWeight("");
     setError("");
   };
@@ -101,8 +102,8 @@ export default function AddExerciseDialog({
   const clearSelected = () => {
     setSelected(null);
     setName("");
-    setSets("");
-    setReps("");
+    setSets("3");
+    setReps("10");
   };
 
   const pickCatalog = (item: CatalogItem) => {
@@ -420,49 +421,30 @@ export default function AddExerciseDialog({
 
           {/* Sets / reps / weight for this log entry */}
           {(mode === "new" || selected) && (
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label className="text-xs text-neutral-400 mb-1 block">
-                  Sets
-                </label>
-                <Input
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
-                  value={sets}
-                  onChange={(e) => setSets(e.target.value)}
-                  disabled={loading}
-                  className="h-12 rounded-xl border-2 border-neutral-800 bg-neutral-950 px-3 text-center text-lg text-white focus:border-emerald-600"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-neutral-400 mb-1 block">
-                  Reps
-                </label>
-                <Input
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
-                  value={reps}
-                  onChange={(e) => setReps(e.target.value)}
-                  disabled={loading}
-                  className="h-12 rounded-xl border-2 border-neutral-800 bg-neutral-950 px-3 text-center text-lg text-white focus:border-emerald-600"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-neutral-400 mb-1 block">
-                  Weight
-                </label>
-                <Input
-                  type="number"
-                  inputMode="decimal"
-                  min={0}
-                  value={weight}
-                  onChange={(e) => setWeight(e.target.value)}
-                  disabled={loading}
-                  className="h-12 rounded-xl border-2 border-neutral-800 bg-neutral-950 px-3 text-center text-lg text-white focus:border-emerald-600"
-                />
-              </div>
+            <div className="space-y-3">
+              <NumberStepper
+                label="Sets"
+                value={sets}
+                onChange={setSets}
+                placeholder="3"
+                disabled={loading}
+              />
+              <NumberStepper
+                label="Reps"
+                value={reps}
+                onChange={setReps}
+                placeholder="10"
+                disabled={loading}
+              />
+              <NumberStepper
+                label="Weight"
+                value={weight}
+                onChange={setWeight}
+                placeholder="0"
+                decimal
+                step={2.5}
+                disabled={loading}
+              />
             </div>
           )}
 

@@ -16,6 +16,27 @@ async function getActiveSession(id: number, userId: string) {
   return { session: found };
 }
 
+// Push a session entry's numbers back onto the user's library exercise. Only
+// the fields the caller actually sent travel: sets/reps can't be null on the
+// library row, but a cleared weight (null) means bodyweight and does carry.
+async function syncLibraryExercise(
+  exerciseId: number,
+  userId: string,
+  data: { sets?: number | null; reps?: number | null; weight?: number | null }
+) {
+  const patch = {
+    ...(data.sets != null ? { sets: data.sets } : {}),
+    ...(data.reps != null ? { reps: data.reps } : {}),
+    ...(data.weight !== undefined ? { weight: data.weight } : {}),
+  };
+  if (Object.keys(patch).length === 0) return;
+  // updateMany so a row that isn't the caller's simply matches nothing.
+  await prisma.exercise.updateMany({
+    where: { id: exerciseId, userId },
+    data: patch,
+  });
+}
+
 // POST: log a new exercise in the session
 export async function POST(
   req: NextRequest,
@@ -52,6 +73,10 @@ export async function POST(
       else if (catalogId == null) catalogId = lib.catalogId;
     }
 
+    // True when this request is what put the exercise in the library, so the
+    // library row already carries these numbers and needs no second write.
+    let justCreatedLibraryExercise = false;
+
     // Optionally persist an on-the-fly exercise back to the library.
     if (exerciseId == null && data.saveToLibrary) {
       const existing = await prisma.exercise.findFirst({
@@ -72,6 +97,7 @@ export async function POST(
             },
           });
           exerciseId = createdLib.id;
+          justCreatedLibraryExercise = true;
         } catch {
           // name collides with another user's exercise (name is globally
           // unique) — keep it as a free-form entry instead.
@@ -95,6 +121,12 @@ export async function POST(
       },
       include: { catalog: { select: { images: true } } },
     });
+
+    // What you actually lift in a session is the prescription from now on, so
+    // logging a library exercise with different numbers updates the library.
+    if (exerciseId != null && !justCreatedLibraryExercise) {
+      await syncLibraryExercise(exerciseId, session.user.id, data);
+    }
 
     return NextResponse.json({ entry }, { status: 201 });
   } catch (error: unknown) {
@@ -142,6 +174,12 @@ export async function PATCH(
         weight: data.weight === undefined ? entry.weight : data.weight,
       },
     });
+
+    // Mid-workout is when you find out the weight was wrong — so the edit also
+    // updates the library exercise, everywhere it's used.
+    if (entry.exerciseId != null) {
+      await syncLibraryExercise(entry.exerciseId, session.user.id, data);
+    }
 
     return NextResponse.json({ entry: updated }, { status: 200 });
   } catch (error: unknown) {

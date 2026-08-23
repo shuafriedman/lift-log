@@ -425,9 +425,19 @@ export default function AddExerciseDialog({
             </div>
           )}
 
-          {/* Sets / reps / weight for this log entry */}
+          {/* Sets / reps / weight for this log entry. Logging an exercise
+              from My Exercises with new numbers updates it there too. */}
           {(mode === "new" || selected) && (
             <div className="space-y-3">
+              {selected && (
+                <p className="text-xs text-neutral-400">
+                  These numbers are saved back to{" "}
+                  <span className="font-semibold text-neutral-300">
+                    {selected.name}
+                  </span>{" "}
+                  in My Exercises.
+                </p>
+              )}
               <NumberStepper
                 label="Sets"
                 value={sets}
@@ -448,7 +458,7 @@ export default function AddExerciseDialog({
                 onChange={setWeight}
                 placeholder="0"
                 decimal
-                step={2.5}
+                step={0.5}
                 disabled={loading}
               />
             </div>

@@ -390,8 +390,8 @@ export default function ExerciseDialog({ onsuccess }: ExerciseDialogProps) {
             />
           </div>
 
-          {/* Working weight — 2.5 kg jumps, the smallest plate pair on most
-              racks. Leave it empty for bodyweight exercises. */}
+          {/* Working weight — 0.5 kg steps, or type the number straight in.
+              Leave it empty for bodyweight exercises. */}
           <NumberStepper
             id="weight"
             label="Weight (kg)"
@@ -401,7 +401,7 @@ export default function ExerciseDialog({ onsuccess }: ExerciseDialogProps) {
             onChange={setWeight}
             onKeyDown={handleKeyPress}
             decimal
-            step={2.5}
+            step={0.5}
             max={1000}
             disabled={loading}
           />

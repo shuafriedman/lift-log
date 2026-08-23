@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import { Minus, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,6 +41,11 @@ export default function NumberStepper({
   decimal?: boolean;
   onKeyDown?: React.KeyboardEventHandler<HTMLInputElement>;
 }) {
+  // Callers that don't need to address the field still get a working label —
+  // without an id the <Label htmlFor> pointed at nothing.
+  const generatedId = useId();
+  const fieldId = id ?? generatedId;
+
   const nudge = (direction: 1 | -1) => {
     const current = parseFloat(value);
     const base = Number.isFinite(current) ? current : min;
@@ -53,7 +59,7 @@ export default function NumberStepper({
   return (
     <div className="space-y-2">
       <Label
-        htmlFor={id}
+        htmlFor={fieldId}
         className="flex items-center gap-1 text-sm font-semibold text-white"
       >
         {icon}
@@ -72,7 +78,7 @@ export default function NumberStepper({
         </button>
 
         <Input
-          id={id}
+          id={fieldId}
           type="number"
           /* Brings up the numeric keypad on Android rather than QWERTY. */
           inputMode={decimal ? "decimal" : "numeric"}
@@ -85,7 +91,9 @@ export default function NumberStepper({
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={onKeyDown}
           disabled={disabled}
-          className="h-12 min-w-0 flex-1 rounded-xl border-2 border-neutral-800 bg-neutral-950 text-center text-lg font-semibold text-white shadow-sm focus:border-neutral-200"
+          /* Hide the browser's own hairline spinners — the flanking buttons
+             above are the increment controls. */
+          className="h-12 min-w-0 flex-1 rounded-xl border-2 border-neutral-800 bg-neutral-950 text-center text-lg font-semibold text-white shadow-sm [appearance:textfield] focus:border-neutral-200 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         />
 
         <button

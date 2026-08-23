@@ -16,6 +16,8 @@ interface SessionEntry {
   sets: number | null;
   reps: number | null;
   weight: number | null;
+  /** Set when this entry came from My Exercises — edits flow back to it. */
+  exerciseId?: number | null;
   catalog?: { images: string[] } | null;
 }
 
@@ -411,7 +413,12 @@ export default function SessionDetailPage({
             className="w-full rounded-t-2xl border-t border-neutral-800 bg-neutral-900 p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:max-w-sm sm:rounded-2xl sm:border sm:pb-5"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="mb-4 text-lg font-bold">{editing.name}</h2>
+            <h2 className="mb-1 text-lg font-bold">{editing.name}</h2>
+            <p className="mb-4 text-xs text-neutral-400">
+              {editing.exerciseId != null
+                ? "Saved to this session and to My Exercises — the new numbers carry to every workout using it."
+                : "Saved to this session."}
+            </p>
             <div className="space-y-3">
               <NumberStepper
                 label="Sets"
@@ -428,12 +435,12 @@ export default function SessionDetailPage({
                 disabled={savingEdit}
               />
               <NumberStepper
-                label="Weight"
+                label="Weight (kg)"
                 value={editWeight}
                 onChange={setEditWeight}
                 placeholder="0"
                 decimal
-                step={2.5}
+                step={0.5}
                 disabled={savingEdit}
               />
             </div>

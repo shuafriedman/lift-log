@@ -355,8 +355,9 @@ export default function Exercise() {
                     )}
 
                     {/* Sets / reps / weight are the prescription — tap +/- to
-                        change. Weight gets its own full-width row: it moves in
-                        2.5 kg plate jumps and is the number you change most. */}
+                        nudge, or type straight into the number. Weight gets its
+                        own full-width row: it moves in 0.5 kg steps (micro
+                        plates, dumbbells) and is the number you change most. */}
                     <div className="grid grid-cols-2 gap-2">
                       <CountStepper
                         label="Sets"
@@ -373,7 +374,7 @@ export default function Exercise() {
                       <CountStepper
                         label="Weight"
                         value={ex.weight ?? 0}
-                        step={2.5}
+                        step={0.5}
                         max={1000}
                         unit="kg"
                         onChange={(weight) =>

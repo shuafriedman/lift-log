@@ -1,12 +1,15 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { Minus, Plus } from "lucide-react";
 
 /**
  * Compact +/- control for a single number (sets, reps, working weight).
  *
- * Built for cards and mid-workout rows: no text field, so the keyboard never
- * jumps up just to bump a value. The flanking buttons are 44px touch targets.
+ * Built for cards and mid-workout rows: the flanking buttons are 44px touch
+ * targets for nudging a value one step at a time, and the value itself is a
+ * real input, so a jump from 20 kg to 60 kg is one typed number rather than
+ * eighty taps.
  */
 export default function CountStepper({
   label,
@@ -23,18 +26,44 @@ export default function CountStepper({
   onChange: (next: number) => void;
   min?: number;
   max?: number;
-  /** Fractional steps (e.g. 2.5 kg plates) are rounded to 2 decimals. */
+  /** Fractional steps (e.g. 0.5 kg) are rounded to 2 decimals. */
   step?: number;
   /** Rendered next to the value, e.g. "kg". */
   unit?: string;
   disabled?: boolean;
 }) {
-  const nudge = (direction: 1 | -1) => {
-    let next = value + direction * step;
-    if (max != null) next = Math.min(next, max);
+  const decimal = !Number.isInteger(step);
+  // While the field has focus the raw keystrokes win, so half-typed values
+  // ("6", "62.") survive; blur hands control back to the canonical number.
+  const [draft, setDraft] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // A value changed from the outside (a refetch, a +/- tap) ends any edit.
+  useEffect(() => {
+    if (document.activeElement !== inputRef.current) setDraft(null);
+  }, [value]);
+
+  const clamp = (n: number) => {
+    let next = max != null ? Math.min(n, max) : n;
     next = Math.max(next, min);
-    // Avoid 72.5 + 2.5 => 75.00000000000001 on the fractional steps.
-    onChange(Math.round(next * 100) / 100);
+    // Avoid 72.5 + 0.5 => 73.00000000000001 on the fractional steps.
+    return Math.round(next * 100) / 100;
+  };
+
+  const nudge = (direction: 1 | -1) => {
+    setDraft(null);
+    onChange(clamp(value + direction * step));
+  };
+
+  const handleInput = (raw: string) => {
+    // Keep digits (and one decimal point when the step allows fractions).
+    const cleaned = decimal
+      ? raw.replace(/[^\d.]/g, "").replace(/(\..*)\./g, "$1")
+      : raw.replace(/[^\d]/g, "");
+    setDraft(cleaned);
+    if (cleaned === "" || cleaned === ".") return;
+    const parsed = Number(cleaned);
+    if (Number.isFinite(parsed)) onChange(clamp(parsed));
   };
 
   return (
@@ -50,14 +79,33 @@ export default function CountStepper({
         >
           <Minus className="h-4 w-4" />
         </button>
-        <span className="min-w-[2.5ch] text-xl font-bold tabular-nums">
-          {value}
+        {/* The label fills the row so a thumb lands on it anywhere between the
+            buttons, while the field itself stays snug against its unit. */}
+        <label className="flex min-w-0 flex-1 cursor-text items-baseline justify-center gap-1 py-2">
+          <span className="sr-only">{label}</span>
+          <input
+            ref={inputRef}
+            value={draft ?? String(value)}
+            onChange={(e) => handleInput(e.target.value)}
+            onFocus={(e) => e.target.select()}
+            onBlur={() => setDraft(null)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.currentTarget.blur();
+            }}
+            disabled={disabled}
+            /* Brings up the numeric keypad on Android rather than QWERTY. */
+            inputMode={decimal ? "decimal" : "numeric"}
+            enterKeyHint="done"
+            className={`min-w-0 bg-transparent text-center text-xl font-bold tabular-nums outline-none focus:text-teal-300 disabled:opacity-40 ${
+              unit ? "w-[5ch]" : "w-[3.5ch]"
+            }`}
+          />
           {unit && (
-            <span className="ml-1 text-xs font-semibold text-neutral-400">
+            <span className="shrink-0 text-xs font-semibold text-neutral-400">
               {unit}
             </span>
           )}
-        </span>
+        </label>
         <button
           type="button"
           onClick={() => nudge(1)}

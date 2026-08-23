@@ -23,6 +23,8 @@ export interface Exercise {
   name: string;
   sets: number;
   reps: number;
+  /** Working weight in kg. Null for bodyweight exercises. */
+  weight?: number | null;
   category: string;
   createdAt: string;
   updatedAt: string;
@@ -36,6 +38,15 @@ export interface Exercise {
     primaryMuscles: string[];
     level: string | null;
   } | null;
+}
+
+// Reps volume is sets × reps; once a weight is set, the number that matters is
+// the tonnage moved (sets × reps × kg).
+function volumeLabel(ex: Exercise) {
+  const reps = (ex.sets || 0) * (ex.reps || 0);
+  if (!ex.weight) return `Volume ${reps} reps`;
+  const kg = Math.round(reps * ex.weight * 10) / 10;
+  return `Volume ${reps} reps · ${kg.toLocaleString()} kg`;
 }
 
 export default function Exercise() {
@@ -120,7 +131,12 @@ export default function Exercise() {
     new Map()
   );
 
-  const persistSetsReps = (id: number, sets: number, reps: number) => {
+  const persistPrescription = (
+    id: number,
+    sets: number,
+    reps: number,
+    weight: number | null
+  ) => {
     const prev = saveTimers.current.get(id);
     if (prev) clearTimeout(prev);
     saveTimers.current.set(
@@ -130,12 +146,14 @@ export default function Exercise() {
           const res = await fetch("/api/exercise", {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id, sets, reps }),
+            body: JSON.stringify({ id, sets, reps, weight }),
           });
           if (!res.ok) throw new Error("Failed to update exercise");
         } catch (error) {
           const err = handleError(error);
-          setError(typeof err === "string" ? err : "Could not save sets/reps.");
+          setError(
+            typeof err === "string" ? err : "Could not save sets/reps/weight."
+          );
           try {
             const refresh = await fetch("/api/exercise");
             const data = await refresh.json();
@@ -149,12 +167,15 @@ export default function Exercise() {
     );
   };
 
-  const updateSetsReps = (id: number, patch: { sets?: number; reps?: number }) => {
+  const updatePrescription = (
+    id: number,
+    patch: { sets?: number; reps?: number; weight?: number | null }
+  ) => {
     const current = exercises.find((ex) => ex.id === id);
     if (!current) return;
     const next = { ...current, ...patch };
     setExercises((prev) => prev.map((ex) => (ex.id === id ? next : ex)));
-    persistSetsReps(id, next.sets, next.reps);
+    persistPrescription(id, next.sets, next.reps, next.weight ?? null);
   };
 
   const handleRemovePhoto = async (id: number) => {
@@ -333,21 +354,38 @@ export default function Exercise() {
                       </div>
                     )}
 
-                    {/* Sets / reps are the prescription — tap +/- to change. */}
+                    {/* Sets / reps / weight are the prescription — tap +/- to
+                        change. Weight gets its own full-width row: it moves in
+                        2.5 kg plate jumps and is the number you change most. */}
                     <div className="grid grid-cols-2 gap-2">
                       <CountStepper
                         label="Sets"
                         value={ex.sets || 0}
-                        onChange={(sets) => updateSetsReps(ex.id, { sets })}
+                        onChange={(sets) => updatePrescription(ex.id, { sets })}
                       />
                       <CountStepper
                         label="Reps"
                         value={ex.reps || 0}
-                        onChange={(reps) => updateSetsReps(ex.id, { reps })}
+                        onChange={(reps) => updatePrescription(ex.id, { reps })}
+                      />
+                    </div>
+                    <div className="mt-2">
+                      <CountStepper
+                        label="Weight"
+                        value={ex.weight ?? 0}
+                        step={2.5}
+                        max={1000}
+                        unit="kg"
+                        onChange={(weight) =>
+                          // 0 kg means bodyweight — stored as no weight at all.
+                          updatePrescription(ex.id, {
+                            weight: weight > 0 ? weight : null,
+                          })
+                        }
                       />
                     </div>
                     <p className="mt-2 text-center text-xs text-neutral-500">
-                      Volume {(ex.sets || 0) * (ex.reps || 0)}
+                      {volumeLabel(ex)}
                     </p>
                   </div>
                 </div>

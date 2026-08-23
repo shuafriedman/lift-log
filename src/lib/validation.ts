@@ -7,24 +7,44 @@ export const workoutSchema = z.object({
 });
 
 // --- Exercise Schema ---
+// Working weight in kg. The steppers hand back strings, and an empty field
+// means "bodyweight" — so "" / null both land as null rather than 0.
+const exerciseWeight = z
+    .preprocess(
+        (v) => (v === "" ? null : v === null || v === undefined ? v : Number(v)),
+        z
+            .number()
+            .refine((n) => !Number.isNaN(n), { message: "Weight must be a number." })
+            .min(0)
+            .max(1000)
+            .nullable()
+    )
+    .optional();
+
 export const exerciseSchema = z.object({
     name: z.string().min(1, "Name is required"),
     sets: z.int(),
     reps: z.int(),
+    weight: exerciseWeight,
     // Set when the exercise was picked from the shared catalog.
     catalogId: z.string().min(1).nullable().optional(),
 })
 
-// PATCH /api/exercise — update the library prescription (sets/reps/name).
+// PATCH /api/exercise — update the library prescription (sets/reps/weight/name).
 export const exerciseUpdateSchema = z
     .object({
         id: z.coerce.number().int().positive(),
         name: z.string().trim().min(1).optional(),
         sets: z.coerce.number().int().min(0).optional(),
         reps: z.coerce.number().int().min(0).optional(),
+        weight: exerciseWeight,
     })
     .refine(
-        (d) => d.sets !== undefined || d.reps !== undefined || d.name !== undefined,
+        (d) =>
+            d.sets !== undefined ||
+            d.reps !== undefined ||
+            d.weight !== undefined ||
+            d.name !== undefined,
         { message: "Nothing to update" }
     );
 

@@ -13,6 +13,8 @@ interface Exercise {
   name: string;
   sets: number;
   reps: number;
+  /** Working weight in kg, null for bodyweight exercises. */
+  weight?: number | null;
 }
 
 interface WorkoutExercise {
@@ -282,6 +284,9 @@ export default function WorkoutsPage() {
                         {(we.Exercise?.sets || we.Exercise?.reps) ? (
                           <p className="text-xs text-neutral-500">
                             {we.Exercise.sets} × {we.Exercise.reps}
+                            {we.Exercise.weight != null
+                              ? ` · ${we.Exercise.weight} kg`
+                              : ""}
                           </p>
                         ) : null}
                       </div>

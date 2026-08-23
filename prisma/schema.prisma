@@ -97,6 +97,7 @@ model Exercise {
     name             String            @unique
     sets             Int
     reps             Int
+    weight           Float? // working weight for the prescription, in kg
     userId           String
     catalogId        String? // links to the shared exercise catalog when picked from it
     // Set when the user has attached their own photo. Doubles as the cache-busting

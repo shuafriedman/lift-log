@@ -66,6 +66,7 @@ export async function POST(
               name: data.name,
               sets: data.sets ?? 0,
               reps: data.reps ?? 0,
+              weight: data.weight ?? null,
               userId: session.user.id,
               catalogId: data.catalogId ?? null,
             },

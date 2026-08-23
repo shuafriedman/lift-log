@@ -18,6 +18,7 @@ import { MdFitnessCenter } from "react-icons/md";
 import { AiOutlineCheckCircle, AiOutlineWarning } from "react-icons/ai";
 import { BiDumbbell } from "react-icons/bi";
 import { FiRepeat } from "react-icons/fi";
+import { GiWeightLiftingUp } from "react-icons/gi";
 import { Camera, Circle, Library, PenLine, X } from "lucide-react";
 import NumberStepper from "@/components/number-stepper";
 import ExercisePicker, { type CatalogItem } from "./exercise-picker";
@@ -36,6 +37,8 @@ export default function ExerciseDialog({ onsuccess }: ExerciseDialogProps) {
   const [catalogImage, setCatalogImage] = useState<string | null>(null);
   const [sets, setSets] = useState("3");
   const [reps, setReps] = useState("10");
+  // Empty means bodyweight — no weight is stored for the exercise.
+  const [weight, setWeight] = useState("");
   const [loading, setLoading] = useState(false);
   // Photo taken before the exercise exists — uploaded right after it's created.
   const [pendingPhoto, setPendingPhoto] = useState<ProcessedPhoto | null>(null);
@@ -78,6 +81,10 @@ export default function ExerciseDialog({ onsuccess }: ExerciseDialogProps) {
       showMessage("Reps must be greater than 0", "error");
       return false;
     }
+    if (weight && Number(weight) < 0) {
+      showMessage("Weight can't be negative", "error");
+      return false;
+    }
     return true;
   };
 
@@ -93,6 +100,7 @@ export default function ExerciseDialog({ onsuccess }: ExerciseDialogProps) {
           name: name.trim(),
           sets: sets ? Number(sets) : 0,
           reps: reps ? Number(reps) : 0,
+          weight: weight ? Number(weight) : null,
           catalogId,
           workoutId,
         }),
@@ -125,6 +133,7 @@ export default function ExerciseDialog({ onsuccess }: ExerciseDialogProps) {
       setPendingPhoto(null);
       setSets("3");
       setReps("10");
+      setWeight("");
       onsuccess?.();
       setTimeout(() => {
         setOpen(false);
@@ -156,6 +165,7 @@ export default function ExerciseDialog({ onsuccess }: ExerciseDialogProps) {
     setCameraOpen(false);
     setSets("3");
     setReps("10");
+    setWeight("");
     setMessage("");
     setMode("library");
   };
@@ -379,6 +389,22 @@ export default function ExerciseDialog({ onsuccess }: ExerciseDialogProps) {
               disabled={loading}
             />
           </div>
+
+          {/* Working weight — 2.5 kg jumps, the smallest plate pair on most
+              racks. Leave it empty for bodyweight exercises. */}
+          <NumberStepper
+            id="weight"
+            label="Weight (kg)"
+            icon={<GiWeightLiftingUp className="text-neutral-200" />}
+            placeholder="Bodyweight"
+            value={weight}
+            onChange={setWeight}
+            onKeyDown={handleKeyPress}
+            decimal
+            step={2.5}
+            max={1000}
+            disabled={loading}
+          />
 
           {message && (
             <div

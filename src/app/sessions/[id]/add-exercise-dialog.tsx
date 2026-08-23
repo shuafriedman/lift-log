@@ -25,6 +25,8 @@ interface LibraryExercise {
   name: string;
   sets: number;
   reps: number;
+  /** Working weight in kg, null for bodyweight exercises. */
+  weight?: number | null;
   catalog?: { images: string[] } | null;
 }
 
@@ -96,6 +98,8 @@ export default function AddExerciseDialog({
     setName(ex.name);
     setSets(String(ex.sets ?? ""));
     setReps(String(ex.reps ?? ""));
+    // Start from the weight saved on the exercise; it's usually what you lift.
+    setWeight(ex.weight != null ? String(ex.weight) : "");
     setError("");
   };
 
@@ -104,6 +108,7 @@ export default function AddExerciseDialog({
     setName("");
     setSets("3");
     setReps("10");
+    setWeight("");
   };
 
   const pickCatalog = (item: CatalogItem) => {
@@ -308,6 +313,7 @@ export default function AddExerciseDialog({
                           </p>
                           <p className="text-xs text-neutral-500 mt-0.5">
                             {ex.sets} × {ex.reps}
+                            {ex.weight != null ? ` · ${ex.weight} kg` : ""}
                           </p>
                         </div>
                       </button>
@@ -437,7 +443,7 @@ export default function AddExerciseDialog({
                 disabled={loading}
               />
               <NumberStepper
-                label="Weight"
+                label="Weight (kg)"
                 value={weight}
                 onChange={setWeight}
                 placeholder="0"

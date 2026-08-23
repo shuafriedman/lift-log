@@ -40,6 +40,7 @@ export async function GET() {
           totalLifts: 0,
           totalWeekLifts: 0,
           averageReps: 0,
+          totalVolume: 0,
         },
         { status: 200 }
       );
@@ -69,8 +70,16 @@ export async function GET() {
       exercises.reduce((sum, exercise) => sum + exercise.reps, 0) /
       exercises.length;
 
+    // Weight volume = sum of (sets * reps * weight), in kg. Bodyweight
+    // exercises (no weight set) contribute nothing.
+    const totalVolume = exercises.reduce(
+      (total, exercise) =>
+        total + exercise.sets * exercise.reps * (exercise.weight ?? 0),
+      0
+    );
+
     return NextResponse.json(
-      { exercises, totalLifts, totalWeekLifts, averageReps },
+      { exercises, totalLifts, totalWeekLifts, averageReps, totalVolume },
       { status: 200 }
     );
   } catch (error: unknown) {
@@ -110,6 +119,7 @@ export async function POST(req: NextRequest) {
         name: validateData.name,
         sets: validateData.sets,
         reps: validateData.reps,
+        weight: validateData.weight ?? null,
         userId: session.user.id,
         catalogId: validateData.catalogId ?? null,
       },
@@ -126,7 +136,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// PATCH: update sets/reps (or name) on an existing library exercise
+// PATCH: update sets/reps/weight (or name) on an existing library exercise
 export async function PATCH(req: NextRequest) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session)
@@ -168,6 +178,7 @@ export async function PATCH(req: NextRequest) {
         ...(data.name !== undefined ? { name: data.name } : {}),
         ...(data.sets !== undefined ? { sets: data.sets } : {}),
         ...(data.reps !== undefined ? { reps: data.reps } : {}),
+        ...(data.weight !== undefined ? { weight: data.weight } : {}),
       },
     });
 

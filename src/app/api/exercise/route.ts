@@ -18,6 +18,18 @@ export async function GET() {
     const exercises = await prisma.exercise.findMany({
       where: { userId: session.user.id },
       orderBy: { createdAt: "desc" },
+      include: {
+        catalog: {
+          select: {
+            id: true,
+            images: true,
+            category: true,
+            equipment: true,
+            primaryMuscles: true,
+            level: true,
+          },
+        },
+      },
     });
 
     if (!exercises || exercises.length === 0) {
@@ -93,16 +105,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    await prisma.exercise.create({
+    const created = await prisma.exercise.create({
       data: {
         name: validateData.name,
         sets: validateData.sets,
         reps: validateData.reps,
         userId: session.user.id,
+        catalogId: validateData.catalogId ?? null,
       },
     });
 
-    return NextResponse.json({ message: "Exercise created successfully" });
+    // The id comes back so the caller can attach a photo right after creating.
+    return NextResponse.json({
+      message: "Exercise created successfully",
+      exercise: created,
+    });
   } catch (error: unknown) {
     const err = handleError(error);
     return NextResponse.json(err, { status: 500 });

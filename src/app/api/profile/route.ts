@@ -1,8 +1,9 @@
 //src/app/api/profile/route.ts
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { profileSchema } from "@/lib/validation";
+import { apiProfileSchema } from "@/lib/validation";
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 
 async function getSession(req: NextRequest) {
   return await auth.api.getSession({ headers: req.headers });
@@ -26,14 +27,27 @@ export async function PUT(req: NextRequest) {
   const session = await getSession(req);
   if (!session) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 
-  const data = profileSchema.parse(await req.json());
+  try {
+    const data = apiProfileSchema.parse(await req.json());
 
-  await prisma.user.update({
-    where: { id: session.user.id },
-    data,
-  });
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data,
+    });
 
-  return NextResponse.json({ message: "Profile updated successfully" });
+    return NextResponse.json({ message: "Profile updated successfully" });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { message: error.issues[0]?.message ?? "Invalid profile data." },
+        { status: 400 }
+      );
+    }
+    return NextResponse.json(
+      { message: "Failed to update profile." },
+      { status: 500 }
+    );
+  }
 }
 
 export async function DELETE(req: NextRequest) {

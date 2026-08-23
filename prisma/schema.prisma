@@ -23,6 +23,7 @@ model User {
     sessions      Session[]
     progress      Progress[]
     streak        Streak?
+    workoutSessions WorkoutSession[]
 
     @@map("user")
 }
@@ -97,10 +98,87 @@ model Exercise {
     sets             Int
     reps             Int
     userId           String
+    catalogId        String? // links to the shared exercise catalog when picked from it
+    // Set when the user has attached their own photo. Doubles as the cache-busting
+    // version for /api/exercise/[id]/photo, so the bytes never have to be listed.
+    photoUpdatedAt   DateTime?
     user             User              @relation(fields: [userId], references: [id])
+    catalog          ExerciseCatalog?  @relation(fields: [catalogId], references: [id])
+    photo            ExercisePhoto?
     workoutExercises WorkoutExercise[]
+    sessionExercises SessionExercise[]
     createdAt        DateTime          @default(now())
     updatedAt        DateTime          @default(now()) @updatedAt
+}
+
+// A photo the user took for one of their own exercises. Kept in its own table so
+// listing exercises never drags the image bytes along.
+model ExercisePhoto {
+    exerciseId Int      @id
+    data       Bytes
+    mimeType   String   @default("image/jpeg")
+    width      Int
+    height     Int
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @default(now()) @updatedAt
+    exercise   Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+    @@map("exercise_photo")
+}
+
+// Shared, read-only catalog of exercises seeded from the public-domain
+// free-exercise-db dataset (https://github.com/yuhonas/free-exercise-db).
+model ExerciseCatalog {
+    id               String     @id // dataset slug, e.g. "Barbell_Bench_Press"
+    name             String     @unique
+    force            String? // push | pull | static
+    level            String? // beginner | intermediate | expert
+    mechanic         String? // compound | isolation
+    equipment        String?
+    category         String? // strength | stretching | cardio | ...
+    primaryMuscles   String[]
+    secondaryMuscles String[]
+    instructions     String[]
+    images           String[] // public paths, e.g. "/exercises/Barbell_Bench_Press/0.jpg"
+    createdAt        DateTime   @default(now())
+    exercises        Exercise[]
+    sessionExercises SessionExercise[]
+
+    @@index([category])
+    @@index([equipment])
+    @@index([level])
+    @@map("exercise_catalog")
+}
+
+// An on-the-fly workout: started live, exercises added as you go.
+model WorkoutSession {
+    id        Int               @id @default(autoincrement())
+    userId    String
+    name      String?
+    startedAt DateTime          @default(now())
+    endedAt   DateTime? // null while the session is still active
+    createdAt DateTime          @default(now())
+    updatedAt DateTime          @default(now()) @updatedAt
+    user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+    entries   SessionExercise[]
+}
+
+// One exercise logged within a session (individual progress entry).
+model SessionExercise {
+    id         Int              @id @default(autoincrement())
+    sessionId  Int
+    exerciseId Int? // links to the user's Exercise library when picked from it
+    catalogId  String? // links to the shared catalog when picked from it
+    name       String // snapshot name, so on-the-fly entries survive
+    sets       Int?
+    reps       Int?
+    weight     Float?
+    order      Int              @default(0)
+    createdAt  DateTime         @default(now())
+    updatedAt  DateTime         @default(now()) @updatedAt
+    session    WorkoutSession   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+    exercise   Exercise?        @relation(fields: [exerciseId], references: [id], onDelete: SetNull)
+    catalog    ExerciseCatalog? @relation(fields: [catalogId], references: [id])
 }
 
 model Progress {

@@ -2,6 +2,7 @@
 
 import { useForm, SubmitHandler, Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
     ProfileFormValues,
@@ -16,16 +17,18 @@ interface ProfileData {
 }
 
 export function ProfileForm() {
+    const router = useRouter();
     const setUser = useUserStore((state) => state.setUser);
     const [isLoading, setIsLoading] = useState(false);
     const [isDataLoading, setIsDataLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [saved, setSaved] = useState(false);
 
     const {
         register,
         handleSubmit,
         reset,
-        formState: { errors, isDirty },
+        formState: { errors },
     } = useForm<ProfileFormInput>({
         resolver: zodResolver(profileSchema) as Resolver<ProfileFormInput>,
         defaultValues: {
@@ -79,6 +82,14 @@ export function ProfileForm() {
                 height: data.height ?? undefined,
                 weight: data.weight ?? undefined,
             }));
+
+            // Clear the dirty state, confirm, then continue to the dashboard.
+            reset({
+                height: data.height != null ? String(data.height) : "",
+                weight: data.weight != null ? String(data.weight) : "",
+            });
+            setSaved(true);
+            router.push("/dashboard");
         } catch (err) {
             setError(err instanceof Error ? err.message : "Update failed.");
         } finally {
@@ -150,19 +161,25 @@ export function ProfileForm() {
                 </p>
             )}
 
+            {saved && !error && (
+                <p className="text-sm text-emerald-400 bg-emerald-500/10 p-2 rounded border border-emerald-500/20">
+                    Saved! Taking you to your dashboard…
+                </p>
+            )}
+
             <button
                 type="submit"
-                disabled={isLoading || !isDirty}
+                disabled={isLoading || saved}
                 className={`
-          w-full py-2 px-4 rounded-md text-sm font-medium 
-          transition 
-          ${isLoading || !isDirty
+          w-full py-2 px-4 rounded-md text-sm font-medium
+          transition
+          ${isLoading || saved
                         ? "bg-muted text-muted-foreground cursor-not-allowed"
                         : "bg-emerald-500 hover:bg-emerald-600 text-black"
                     }
         `}
             >
-                {isLoading ? "Saving..." : "Save Profile"}
+                {isLoading ? "Saving..." : saved ? "Saved!" : "Save Profile"}
             </button>
         </form>
     );

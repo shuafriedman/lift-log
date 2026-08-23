@@ -12,13 +12,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useWorkoutStore } from "@/store/workoutStrore";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { IoMdAdd } from "react-icons/io";
 import { MdFitnessCenter } from "react-icons/md";
 import { AiOutlineCheckCircle, AiOutlineWarning } from "react-icons/ai";
 import { BiDumbbell } from "react-icons/bi";
 import { FiRepeat } from "react-icons/fi";
-import { Circle } from "lucide-react";
+import { Camera, Circle, Library, PenLine, X } from "lucide-react";
+import ExercisePicker, { type CatalogItem } from "./exercise-picker";
+import CameraCapture from "@/components/camera-capture";
+import { uploadExercisePhoto, type ProcessedPhoto } from "@/lib/image";
 
 interface ExerciseDialogProps {
   onsuccess?: () => void;
@@ -26,10 +29,17 @@ interface ExerciseDialogProps {
 
 export default function ExerciseDialog({ onsuccess }: ExerciseDialogProps) {
   const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<"library" | "custom">("library");
   const [name, setName] = useState("");
+  const [catalogId, setCatalogId] = useState<string | null>(null);
+  const [catalogImage, setCatalogImage] = useState<string | null>(null);
   const [sets, setSets] = useState("");
   const [reps, setReps] = useState("");
   const [loading, setLoading] = useState(false);
+  // Photo taken before the exercise exists — uploaded right after it's created.
+  const [pendingPhoto, setPendingPhoto] = useState<ProcessedPhoto | null>(null);
+  const [pendingPhotoUrl, setPendingPhotoUrl] = useState<string | null>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState<"success" | "error">(
     "success"
@@ -42,6 +52,17 @@ export default function ExerciseDialog({ onsuccess }: ExerciseDialogProps) {
     setMessageType(type);
     setTimeout(() => setMessage(""), 3000);
   };
+
+  // Local preview for the pending photo.
+  useEffect(() => {
+    if (!pendingPhoto) {
+      setPendingPhotoUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(pendingPhoto.blob);
+    setPendingPhotoUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [pendingPhoto]);
 
   const validateInputs = () => {
     if (!name.trim()) {
@@ -71,16 +92,36 @@ export default function ExerciseDialog({ onsuccess }: ExerciseDialogProps) {
           name: name.trim(),
           sets: sets ? Number(sets) : 0,
           reps: reps ? Number(reps) : 0,
+          catalogId,
           workoutId,
         }),
       });
 
+      const data = await res.json();
       if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || "Failed to save exercise");
+        throw new Error(data?.message || "Failed to save exercise");
       }
-      showMessage("Exercise added successfully!", "success");
+
+      // The exercise has an id now, so any photo taken above can be attached.
+      let photoFailed = false;
+      if (pendingPhoto && data?.exercise?.id) {
+        try {
+          await uploadExercisePhoto(data.exercise.id, pendingPhoto);
+        } catch {
+          photoFailed = true;
+        }
+      }
+
+      showMessage(
+        photoFailed
+          ? "Exercise added, but the photo didn't upload. Try again from the card."
+          : "Exercise added successfully!",
+        photoFailed ? "error" : "success"
+      );
       setName("");
+      setCatalogId(null);
+      setCatalogImage(null);
+      setPendingPhoto(null);
       setSets("");
       setReps("");
       onsuccess?.();
@@ -108,9 +149,26 @@ export default function ExerciseDialog({ onsuccess }: ExerciseDialogProps) {
 
   const resetForm = () => {
     setName("");
+    setCatalogId(null);
+    setCatalogImage(null);
+    setPendingPhoto(null);
+    setCameraOpen(false);
     setSets("");
     setReps("");
     setMessage("");
+    setMode("library");
+  };
+
+  const handleSelectCatalog = (item: CatalogItem) => {
+    setName(item.name);
+    setCatalogId(item.id);
+    setCatalogImage(item.images?.[0] ?? null);
+  };
+
+  const clearSelection = () => {
+    setName("");
+    setCatalogId(null);
+    setCatalogImage(null);
   };
 
   const incrementValue = (
@@ -150,45 +208,170 @@ export default function ExerciseDialog({ onsuccess }: ExerciseDialogProps) {
       </DialogTrigger>
 
       <DialogContent className="sm:max-w-xl p-0 rounded-3xl shadow-2xl bg-neutral-950 border-0 overflow-hidden max-h-[90vh] overflow-y-auto">
-        <div className="p-8 relative overflow-hidden">
+        <div className="px-6 pt-5 pb-3 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-32 translate-x-32 blur-3xl" />
-          <div className="absolute bottom-0 left-0 w-48 h-48 bg-neutral-900/40 rounded-full translate-y-24 -translate-x-24 blur-2xl" />
           <DialogHeader className="relative z-10">
-            <div className="flex items-center gap-4">
-              <div className="bg-neutral-800 p-4 rounded-2xl backdrop-blur-sm border border-neutral-900 shadow-lg">
-                <MdFitnessCenter className="text-4xl text-white" />
+            <div className="flex items-center gap-3">
+              <div className="bg-neutral-800 p-2.5 rounded-xl backdrop-blur-sm border border-neutral-900 shadow-lg">
+                <MdFitnessCenter className="text-2xl text-white" />
               </div>
               <div className="flex-1">
-                <DialogTitle className="text-3xl font-bold mb-1 text-white">
+                <DialogTitle className="text-xl font-bold text-white">
                   Add New Exercise
                 </DialogTitle>
-                <DialogDescription className="text-neutral-400 text-base">
-                  Track your progress with detailed workout data
+                <DialogDescription className="text-neutral-400 text-sm">
+                  Pick from the library or add your own
                 </DialogDescription>
               </div>
             </div>
           </DialogHeader>
         </div>
 
-        <div className="p-8 space-y-6 bg-black">
-          <div className="space-y-2">
-            <Label
-              htmlFor="name"
-              className="font-semibold text-white flex items-center gap-2 text-base"
+        <div className="px-6 pb-6 pt-1 space-y-4 bg-black">
+          {/* Source toggle: pick from the shared library or type a custom name */}
+          <div className="grid grid-cols-2 gap-2 p-1 bg-neutral-950 border border-neutral-800 rounded-xl">
+            <button
+              type="button"
+              onClick={() => {
+                setMode("library");
+                clearSelection();
+              }}
+              className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                mode === "library"
+                  ? "bg-neutral-800 text-white"
+                  : "text-neutral-400 hover:text-white"
+              }`}
             >
-              <BiDumbbell className="text-neutral-200" />
-              Exercise Name <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="name"
-              placeholder="e.g., Bench Press, Squats, Deadlift"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onKeyPress={handleKeyPress}
-              className="border-2 border-neutral-800 focus:border-neutral-200 focus:ring-4 focus:ring-neutral-900 rounded-xl shadow-sm text-white placeholder:text-neutral-500 bg-neutral-950 transition-all h-12 text-base px-4"
+              <Library className="h-4 w-4" />
+              From library
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMode("custom");
+                clearSelection();
+              }}
+              className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                mode === "custom"
+                  ? "bg-neutral-800 text-white"
+                  : "text-neutral-400 hover:text-white"
+              }`}
+            >
+              <PenLine className="h-4 w-4" />
+              Custom
+            </button>
+          </div>
+
+          {mode === "library" ? (
+            catalogId ? (
+              // Selected preview
+              <div className="flex items-center gap-4 p-3 rounded-xl border border-teal-800 bg-teal-950/30">
+                <div className="h-16 w-16 flex-shrink-0 rounded-lg overflow-hidden bg-neutral-800 flex items-center justify-center">
+                  {catalogImage ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={catalogImage}
+                      alt={name}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <BiDumbbell className="text-neutral-500 text-2xl" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs text-teal-400 font-semibold uppercase tracking-wide">
+                    Selected
+                  </p>
+                  <p className="text-white font-bold truncate">{name}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={clearSelection}
+                  className="p-2 rounded-lg text-neutral-400 hover:text-white hover:bg-neutral-800 transition-colors"
+                  aria-label="Clear selection"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            ) : (
+              <ExercisePicker
+                onSelect={handleSelectCatalog}
+                selectedId={catalogId}
+              />
+            )
+          ) : (
+            <div className="space-y-2">
+              <Label
+                htmlFor="name"
+                className="font-semibold text-white flex items-center gap-2 text-base"
+              >
+                <BiDumbbell className="text-neutral-200" />
+                Exercise Name <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="name"
+                placeholder="e.g., Bench Press, Squats, Deadlift"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onKeyPress={handleKeyPress}
+                className="border-2 border-neutral-800 focus:border-neutral-200 focus:ring-4 focus:ring-neutral-900 rounded-xl shadow-sm text-white placeholder:text-neutral-500 bg-neutral-950 transition-all h-12 text-base px-4"
+                disabled={loading}
+                autoFocus
+              />
+            </div>
+          )}
+
+          {/* Your own photo — optional, replaces the stock catalog image */}
+          <div className="flex items-center gap-3 rounded-xl border border-neutral-800 bg-neutral-950 p-3">
+            <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg bg-neutral-900 flex items-center justify-center">
+              {pendingPhotoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={pendingPhotoUrl}
+                  alt="Your photo"
+                  className="h-full w-full object-cover"
+                />
+              ) : catalogImage ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={catalogImage}
+                  alt={name}
+                  className="h-full w-full object-cover opacity-50"
+                />
+              ) : (
+                <Camera className="h-6 w-6 text-neutral-600" />
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-white">
+                {pendingPhoto ? "Your photo" : "Add a photo"}
+              </p>
+              <p className="truncate text-xs text-neutral-500">
+                {pendingPhoto ? "Saved with the exercise" : "Optional"}
+              </p>
+            </div>
+            {pendingPhoto && (
+              <button
+                type="button"
+                onClick={() => setPendingPhoto(null)}
+                className="rounded-lg p-2 text-neutral-400 transition-colors hover:bg-neutral-800 hover:text-white"
+                aria-label="Remove photo"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setCameraOpen(true)}
               disabled={loading}
-              autoFocus
-            />
+              className="flex h-11 flex-shrink-0 items-center gap-2 rounded-xl bg-neutral-800 px-3 sm:px-4 text-sm font-semibold text-white transition-colors hover:bg-neutral-700 active:bg-neutral-700 disabled:opacity-50"
+              aria-label={pendingPhoto ? "Retake photo" : "Take a photo"}
+            >
+              <Camera className="h-5 w-5" />
+              <span className="hidden sm:inline">
+                {pendingPhoto ? "Retake" : "Camera"}
+              </span>
+            </button>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -333,6 +516,16 @@ export default function ExerciseDialog({ onsuccess }: ExerciseDialogProps) {
             </Button>
           </div>
         </div>
+
+        <CameraCapture
+          open={cameraOpen}
+          onClose={() => setCameraOpen(false)}
+          onCapture={(photo) => {
+            setPendingPhoto(photo);
+            setCameraOpen(false);
+          }}
+          title={name ? `Photo for ${name}` : "Take a photo"}
+        />
       </DialogContent>
     </Dialog>
   );

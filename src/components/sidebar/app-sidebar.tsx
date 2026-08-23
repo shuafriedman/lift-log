@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Home, Dumbbell, List, BarChart } from "lucide-react";
+import { Home, Dumbbell, List, BarChart, Timer } from "lucide-react";
 import { useUserStore } from "@/store/userStore";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import {
@@ -16,6 +16,7 @@ export default function AppSidebar() {
 
   const menuItems = [
     { name: "Dashboard", href: "/dashboard", icon: <Home size={20} /> },
+    { name: "Sessions", href: "/sessions", icon: <Timer size={20} /> },
     { name: "Workouts", href: "/workouts", icon: <Dumbbell size={20} /> },
     { name: "Exercises", href: "/exercises", icon: <List size={20} /> },
     { name: "Progress", href: "/progress", icon: <BarChart size={20} /> },

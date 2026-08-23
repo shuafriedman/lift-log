@@ -7,6 +7,13 @@ import { MdFitnessCenter, MdDelete } from "react-icons/md";
 import { FiRepeat } from "react-icons/fi";
 import { BiDumbbell } from "react-icons/bi";
 import { AiOutlineCheckCircle } from "react-icons/ai";
+import { Camera, ImageOff } from "lucide-react";
+import CameraCapture from "@/components/camera-capture";
+import {
+  exercisePhotoUrl,
+  uploadExercisePhoto,
+  type ProcessedPhoto,
+} from "@/lib/image";
 import LogoLoading from "../logo-loading/page";
 
 export interface Exercise {
@@ -17,6 +24,16 @@ export interface Exercise {
   category: string;
   createdAt: string;
   updatedAt: string;
+  /** Set when the user has taken their own photo for this exercise. */
+  photoUpdatedAt?: string | null;
+  catalog?: {
+    id: string;
+    images: string[];
+    category: string | null;
+    equipment: string | null;
+    primaryMuscles: string[];
+    level: string | null;
+  } | null;
 }
 
 export default function Exercise() {
@@ -24,6 +41,9 @@ export default function Exercise() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  // Which exercise the camera sheet is currently shooting for.
+  const [photoTarget, setPhotoTarget] = useState<Exercise | null>(null);
+  const [savingPhoto, setSavingPhoto] = useState(false);
 
   const fetchExercises = async () => {
     try {
@@ -66,6 +86,40 @@ export default function Exercise() {
       setError(typeof err === "string" ? err : "An error occurred.");
     } finally {
       setDeleteId(null);
+    }
+  };
+
+  // Save a freshly taken photo, then swap it into the card without a refetch.
+  const handlePhotoCapture = async (photo: ProcessedPhoto) => {
+    if (!photoTarget) return;
+    const target = photoTarget;
+    try {
+      setSavingPhoto(true);
+      setError("");
+      const photoUpdatedAt = await uploadExercisePhoto(target.id, photo);
+      setExercises((prev) =>
+        prev.map((ex) => (ex.id === target.id ? { ...ex, photoUpdatedAt } : ex))
+      );
+      setPhotoTarget(null);
+    } catch (error) {
+      const err = handleError(error);
+      setError(typeof err === "string" ? err : "Could not save the photo.");
+    } finally {
+      setSavingPhoto(false);
+    }
+  };
+
+  const handleRemovePhoto = async (id: number) => {
+    if (!confirm("Remove your photo for this exercise?")) return;
+    try {
+      const res = await fetch(`/api/exercise/${id}/photo`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to remove photo");
+      setExercises((prev) =>
+        prev.map((ex) => (ex.id === id ? { ...ex, photoUpdatedAt: null } : ex))
+      );
+    } catch (error) {
+      const err = handleError(error);
+      setError(typeof err === "string" ? err : "Could not remove the photo.");
     }
   };
 
@@ -156,7 +210,11 @@ export default function Exercise() {
         {/* Exercise Grid */}
         {exercises.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {exercises.map((ex, index) => (
+            {exercises.map((ex, index) => {
+              // The user's own photo always wins over the stock catalog image.
+              const ownPhoto = exercisePhotoUrl(ex.id, ex.photoUpdatedAt);
+              const image = ownPhoto ?? ex.catalog?.images?.[0] ?? null;
+              return (
               <div
                 key={ex.id}
                 className="relative group rounded-2xl backdrop-blur-xl border border-teal-950 shadow-lg hover:shadow-black/50 dark:hover:shadow-teal-500 transition-all duration-500 overflow-hidden p-[1px]"
@@ -164,22 +222,60 @@ export default function Exercise() {
                   animation: `fadeIn 0.5s ease-out ${index * 0.1}s both`,
                 }}
               >
-                {/* Card Header */}
-                <div className=" p-6 relative overflow-hidden">
+                {/* Card Header — your photo, or the catalog image as a backdrop */}
+                <div
+                  className={`relative overflow-hidden ${
+                    ownPhoto ? "aspect-[4/3] p-4" : "p-6"
+                  }`}
+                >
+                  {image && (
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={image}
+                        alt={ex.name}
+                        className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${
+                          ownPhoto
+                            ? "opacity-100"
+                            : "opacity-40 group-hover:opacity-60"
+                        }`}
+                        loading="lazy"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/60 to-transparent" />
+                    </>
+                  )}
                   <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-16 translate-x-16 blur-2xl" />
                   <div className="relative z-10 flex items-start justify-between">
-                    <div className=" p-3 rounded-xl backdrop-blur-sm">
-                      <BiDumbbell className="text-2xl " />
+                    <div className="p-3 rounded-xl backdrop-blur-sm bg-black/30">
+                      <BiDumbbell className="text-2xl" />
                     </div>
                     <div className="flex gap-2">
                       <button
+                        onClick={() => setPhotoTarget(ex)}
+                        className="bg-black/40 hover:bg-teal-600 active:bg-teal-600 p-2.5 rounded-lg backdrop-blur-sm transition-all duration-200"
+                        title={ownPhoto ? "Retake photo" : "Take a photo"}
+                        aria-label={ownPhoto ? "Retake photo" : "Take a photo"}
+                      >
+                        <Camera className="h-5 w-5" />
+                      </button>
+                      {ownPhoto && (
+                        <button
+                          onClick={() => handleRemovePhoto(ex.id)}
+                          className="bg-black/40 hover:bg-neutral-700 active:bg-neutral-700 p-2.5 rounded-lg backdrop-blur-sm transition-all duration-200"
+                          title="Remove your photo"
+                          aria-label="Remove your photo"
+                        >
+                          <ImageOff className="h-5 w-5" />
+                        </button>
+                      )}
+                      <button
                         onClick={() => handleDelete(ex.id)}
                         disabled={deleteId === ex.id}
-                        className=" hover:bg-red-600 p-2 rounded-lg backdrop-blur-sm transition-all duration-200 disabled:opacity-50"
+                        className="bg-black/40 hover:bg-red-600 active:bg-red-600 p-2.5 rounded-lg backdrop-blur-sm transition-all duration-200 disabled:opacity-50"
                         title="Delete exercise"
                         aria-label="Delete exercise"
                       >
-                        <MdDelete className=" text-lg" />
+                        <MdDelete className="text-lg" />
                       </button>
                     </div>
                   </div>
@@ -196,11 +292,20 @@ export default function Exercise() {
                       .join(" ")}
                   </h3>
 
-                  {ex.category && (
-                    <div className="inline-block  px-3 py-1 rounded-full mb-4">
-                      <span className="text-neutral-300 text-sm font-semibold">
-                        {ex.category}
-                      </span>
+                  {(ex.catalog?.category ||
+                    ex.catalog?.equipment ||
+                    ex.category) && (
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {(ex.catalog?.category ?? ex.category) && (
+                        <span className="inline-block bg-teal-950/60 text-teal-300 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide">
+                          {ex.catalog?.category ?? ex.category}
+                        </span>
+                      )}
+                      {ex.catalog?.equipment && (
+                        <span className="inline-block bg-neutral-800 text-neutral-300 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide">
+                          {ex.catalog.equipment}
+                        </span>
+                      )}
                     </div>
                   )}
 
@@ -240,10 +345,23 @@ export default function Exercise() {
                   )}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
+      {/* Camera sheet — shared by every card */}
+      <CameraCapture
+        open={photoTarget !== null}
+        onClose={() => {
+          if (!savingPhoto) setPhotoTarget(null);
+        }}
+        onCapture={handlePhotoCapture}
+        title={photoTarget ? `Photo for ${photoTarget.name}` : "Take a photo"}
+        confirmLabel="Save photo"
+        saving={savingPhoto}
+      />
+
       {/* Animation Keyframes */}
       <style jsx>{`
         @keyframes fadeIn {

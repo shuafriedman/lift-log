@@ -16,5 +16,9 @@ export default function HandleLogin() {
     }
   };
 
-  return <Button onClick={handlelogin}>Dominate Today</Button>;
+  return (
+    <Button onClick={handlelogin} size="lg" className="w-full sm:w-auto">
+      Dominate Today
+    </Button>
+  );
 }

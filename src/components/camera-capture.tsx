@@ -202,9 +202,9 @@ export default function CameraCapture({
       }}
     >
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-[120] bg-black" />
+        <DialogPrimitive.Overlay className="fixed inset-0 z-[120] h-[100dvh] bg-black" />
         <DialogPrimitive.Content
-          className="fixed inset-0 z-[121] flex flex-col bg-black text-white outline-none"
+          className="fixed inset-0 z-[121] flex h-[100dvh] flex-col bg-black text-white outline-none"
           onOpenAutoFocus={(e) => e.preventDefault()}
           aria-describedby={undefined}
         >

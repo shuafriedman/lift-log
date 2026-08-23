@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import NumberStepper from "@/components/number-stepper";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -133,15 +133,15 @@ export default function ProgressDialog({ onsuccess }: ProgressDialogProps) {
       }}
     >
       <DialogTrigger asChild>
-        <Button className="relative flex items-center gap-2 shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 font-semibold px-6 py-3 rounded-xl overflow-hidden group">
+        <Button className="tap-scale group relative flex h-14 w-full items-center justify-center gap-2 overflow-hidden rounded-2xl font-semibold shadow-lg transition-all duration-300 md:h-12 md:w-auto md:px-6">
           <div className="absolute inset-0 bg-neutral-900 opacity-0 transition-opacity duration-300" />
           <BiDumbbell className="text-xl relative z-10" />
           <span className="relative z-10">Log Progress</span>
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-xl p-0 rounded-3xl shadow-2xl bg-neutral-950 border-0 overflow-hidden max-h-[90vh] overflow-y-auto">
-        <div className="p-8 relative overflow-hidden">
+      <DialogContent className="gap-0 border-neutral-800 bg-neutral-950 p-0 shadow-2xl sm:max-w-xl">
+        <div className="relative overflow-hidden p-5 sm:p-8">
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-32 translate-x-32 blur-3xl" />
           <div className="absolute bottom-0 left-0 w-48 h-48 bg-neutral-900/40 rounded-full translate-y-24 -translate-x-24 blur-2xl" />
           <DialogHeader className="relative z-10">
@@ -150,7 +150,7 @@ export default function ProgressDialog({ onsuccess }: ProgressDialogProps) {
                 <BiDumbbell className="text-4xl text-white" />
               </div>
               <div className="flex-1">
-                <DialogTitle className="text-3xl font-bold mb-1 text-white">
+                <DialogTitle className="mb-1 text-2xl font-bold text-white sm:text-3xl">
                   Log Progress
                 </DialogTitle>
                 <DialogDescription className="text-neutral-400 text-base">
@@ -161,7 +161,7 @@ export default function ProgressDialog({ onsuccess }: ProgressDialogProps) {
           </DialogHeader>
         </div>
 
-        <div className="p-8 space-y-6 bg-black">
+        <div className="space-y-5 bg-black p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:p-8">
           {/* Workout Select */}
           <div className="space-y-2">
             <Label className="font-semibold text-white flex items-center gap-2 text-base">
@@ -171,7 +171,7 @@ export default function ProgressDialog({ onsuccess }: ProgressDialogProps) {
             <select
               value={selectedWorkout ?? ""}
               onChange={(e) => setSelectedWorkout(Number(e.target.value))}
-              className="w-full border-2 border-neutral-800 focus:border-neutral-200 focus:ring-4 focus:ring-neutral-900 rounded-xl shadow-sm bg-neutral-950 text-white h-12 px-4"
+              className="h-12 w-full rounded-xl border-2 border-neutral-800 bg-neutral-950 px-4 text-base text-white shadow-sm focus:border-neutral-200"
               disabled={loading}
             >
               <option value="" disabled>
@@ -186,74 +186,24 @@ export default function ProgressDialog({ onsuccess }: ProgressDialogProps) {
           </div>
 
           {/* Weight / Calories */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label className="font-semibold text-white">Weight (kg)</Label>
-              <div className="relative">
-                <Input
-                  type="number"
-                  step="0.1"
-                  value={weight}
-                  onChange={(e) => setWeight(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  disabled={loading}
-                  className="border-2 border-neutral-800 focus:border-neutral-200 focus:ring-4 focus:ring-neutral-900 rounded-xl shadow-sm bg-neutral-950 text-white h-12 text-center"
-                />
-                <div className="absolute right-1 top-1 bottom-1 flex flex-col">
-                  <button
-                    type="button"
-                    onClick={() => incrementValue(setWeight, weight, 0.5)}
-                    className="flex-1 px-2 hover:bg-neutral-900 text-neutral-200 rounded-t-lg"
-                    disabled={loading}
-                  >
-                    ▲
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => decrementValue(setWeight, weight, 0.5)}
-                    className="flex-1 px-2 hover:bg-neutral-900 text-neutral-200 rounded-b-lg"
-                    disabled={loading}
-                  >
-                    ▼
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="font-semibold text-white">
-                Calories Burned
-              </Label>
-              <div className="relative">
-                <Input
-                  type="number"
-                  step="1"
-                  value={calories}
-                  onChange={(e) => setCalories(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  disabled={loading}
-                  className="border-2 border-neutral-800 focus:border-neutral-200 focus:ring-4 focus:ring-neutral-900 rounded-xl shadow-sm bg-neutral-950 text-white h-12 text-center"
-                />
-                <div className="absolute right-1 top-1 bottom-1 flex flex-col">
-                  <button
-                    type="button"
-                    onClick={() => incrementValue(setCalories, calories, 5)}
-                    className="flex-1 px-2 hover:bg-neutral-900 text-neutral-200 rounded-t-lg"
-                    disabled={loading}
-                  >
-                    ▲
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => decrementValue(setCalories, calories, 5)}
-                    className="flex-1 px-2 hover:bg-neutral-900 text-neutral-200 rounded-b-lg"
-                    disabled={loading}
-                  >
-                    ▼
-                  </button>
-                </div>
-              </div>
-            </div>
+          <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2">
+            <NumberStepper
+              label="Weight (kg)"
+              value={weight}
+              onChange={setWeight}
+              step={0.5}
+              decimal
+              onKeyDown={handleKeyPress}
+              disabled={loading}
+            />
+            <NumberStepper
+              label="Calories Burned"
+              value={calories}
+              onChange={setCalories}
+              step={5}
+              onKeyDown={handleKeyPress}
+              disabled={loading}
+            />
           </div>
 
           {/* Message */}

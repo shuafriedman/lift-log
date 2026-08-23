@@ -63,11 +63,11 @@ const FEATURES = [
 
 export default function Features() {
   return (
-    <section className="relative py-24" id="features">
+    <section className="relative px-1 py-16 md:py-24" id="features">
       {/* subtle gradient glow */}
       <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(60%_40%_at_50%_0%,rgba(94,234,212,0.15),transparent_60%)]" />
 
-      <div className="mx-auto max-w-6xl px-6">
+      <div className="mx-auto max-w-6xl px-5">
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -75,7 +75,7 @@ export default function Features() {
           transition={{ duration: 0.5, ease: "easeOut" }}
           className="text-center mb-14"
         >
-          <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
+          <h2 className="text-2xl font-bold tracking-tight text-balance sm:text-3xl md:text-4xl">
             Train smarter with{" "}
             <span className="bg-gradient-to-r from-emerald-400 via-teal-300 to-teal-500 bg-clip-text text-transparent">
               LiftLog

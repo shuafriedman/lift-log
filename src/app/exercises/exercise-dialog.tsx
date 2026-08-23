@@ -19,6 +19,7 @@ import { AiOutlineCheckCircle, AiOutlineWarning } from "react-icons/ai";
 import { BiDumbbell } from "react-icons/bi";
 import { FiRepeat } from "react-icons/fi";
 import { Camera, Circle, Library, PenLine, X } from "lucide-react";
+import NumberStepper from "@/components/number-stepper";
 import ExercisePicker, { type CatalogItem } from "./exercise-picker";
 import CameraCapture from "@/components/camera-capture";
 import { uploadExercisePhoto, type ProcessedPhoto } from "@/lib/image";
@@ -171,26 +172,6 @@ export default function ExerciseDialog({ onsuccess }: ExerciseDialogProps) {
     setCatalogImage(null);
   };
 
-  const incrementValue = (
-    setter: (value: string) => void,
-    currentValue: string,
-    step: number = 1
-  ) => {
-    const current = Number(currentValue) || 0;
-    setter(String(current + step));
-  };
-
-  const decrementValue = (
-    setter: (value: string) => void,
-    currentValue: string,
-    step: number = 1
-  ) => {
-    const current = Number(currentValue) || 0;
-    if (current - step >= 0) {
-      setter(String(current - step));
-    }
-  };
-
   return (
     <Dialog
       open={open}
@@ -200,14 +181,14 @@ export default function ExerciseDialog({ onsuccess }: ExerciseDialogProps) {
       }}
     >
       <DialogTrigger asChild>
-        <Button className="relative flex items-center gap-2 shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 font-semibold px-6 py-3 rounded-xl overflow-hidden group">
+        <Button className="tap-scale group relative flex h-14 w-full items-center justify-center gap-2 overflow-hidden rounded-2xl font-semibold shadow-lg transition-all duration-300 md:h-12 md:w-auto md:px-6">
           <div className="absolute inset-0 bg-neutral-900 opacity-0 transition-opacity duration-300" />
           <IoMdAdd className="text-xl relative z-10" />
           <span className="relative z-10">Add Exercise</span>
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-xl p-0 rounded-3xl shadow-2xl bg-neutral-950 border-0 overflow-hidden max-h-[90vh] overflow-y-auto">
+      <DialogContent className="gap-0 border-neutral-800 bg-neutral-950 p-0 shadow-2xl sm:max-w-xl">
         <div className="px-6 pt-5 pb-3 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-32 translate-x-32 blur-3xl" />
           <DialogHeader className="relative z-10">
@@ -374,88 +355,29 @@ export default function ExerciseDialog({ onsuccess }: ExerciseDialogProps) {
             </button>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label
-                htmlFor="sets"
-                className="font-semibold text-white text-sm flex items-center gap-1"
-              >
-                <FiRepeat className="text-neutral-200" />
-                Sets
-              </Label>
-              <div className="relative">
-                <Input
-                  id="sets"
-                  type="number"
-                  placeholder="3"
-                  value={sets}
-                  onChange={(e) => setSets(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  min="0"
-                  className="border-2 border-neutral-800 focus:border-neutral-200 focus:ring-4 focus:ring-neutral-900 rounded-xl shadow-sm bg-neutral-950 transition-all h-12 text-center text-lg font-semibold text-white"
-                  disabled={loading}
-                />
-                <div className="absolute right-1 top-1 bottom-1 flex flex-col">
-                  <button
-                    type="button"
-                    onClick={() => incrementValue(setSets, sets)}
-                    className="flex-1 px-2 hover:bg-neutral-900 rounded-t-lg transition-colors text-neutral-200"
-                    disabled={loading}
-                  >
-                    ▲
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => decrementValue(setSets, sets)}
-                    className="flex-1 px-2 hover:bg-neutral-900 rounded-b-lg transition-colors text-neutral-200"
-                    disabled={loading}
-                  >
-                    ▼
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label
-                htmlFor="reps"
-                className="font-semibold text-white text-sm flex items-center gap-1"
-              >
-                <FiRepeat className="text-neutral-200" />
-                Reps
-              </Label>
-              <div className="relative">
-                <Input
-                  id="reps"
-                  type="number"
-                  placeholder="10"
-                  value={reps}
-                  onChange={(e) => setReps(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  min="0"
-                  className="border-2 border-neutral-800 focus:border-neutral-200 focus:ring-4 focus:ring-neutral-900 rounded-xl shadow-sm bg-neutral-950 transition-all h-12 text-center text-lg font-semibold text-white"
-                  disabled={loading}
-                />
-                <div className="absolute right-1 top-1 bottom-1 flex flex-col">
-                  <button
-                    type="button"
-                    onClick={() => incrementValue(setReps, reps)}
-                    className="flex-1 px-2 hover:bg-neutral-900 rounded-t-lg transition-colors text-neutral-200"
-                    disabled={loading}
-                  >
-                    ▲
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => decrementValue(setReps, reps)}
-                    className="flex-1 px-2 hover:bg-neutral-900 rounded-b-lg transition-colors text-neutral-200"
-                    disabled={loading}
-                  >
-                    ▼
-                  </button>
-                </div>
-              </div>
-            </div>
+          {/* Sets / reps stack on a narrow phone so each stepper keeps its
+              full-size buttons instead of squeezing to ~30px wide. */}
+          <div className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2">
+            <NumberStepper
+              id="sets"
+              label="Sets"
+              icon={<FiRepeat className="text-neutral-200" />}
+              placeholder="3"
+              value={sets}
+              onChange={setSets}
+              onKeyDown={handleKeyPress}
+              disabled={loading}
+            />
+            <NumberStepper
+              id="reps"
+              label="Reps"
+              icon={<FiRepeat className="text-neutral-200" />}
+              placeholder="10"
+              value={reps}
+              onChange={setReps}
+              onKeyDown={handleKeyPress}
+              disabled={loading}
+            />
           </div>
 
           {message && (

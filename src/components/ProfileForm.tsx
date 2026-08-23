@@ -104,13 +104,7 @@ export function ProfileForm() {
     return (
         <form
             onSubmit={handleSubmit(onSubmit as SubmitHandler<ProfileFormInput>)}
-            className="
-        space-y-6 max-w-sm mx-auto 
-        bg-card text-card-foreground 
-        border border-border 
-        rounded-xl shadow-md 
-        p-6 md:p-8
-      "
+            className="mx-auto max-w-sm space-y-5 rounded-2xl border border-border bg-card p-5 text-left text-card-foreground shadow-md md:p-8"
         >
             <h2 className="text-2xl font-bold tracking-tight">Body Metrics</h2>
 
@@ -122,10 +116,9 @@ export function ProfileForm() {
                 <input
                     id="height"
                     type="number"
-                    className="
-            w-full p-2 rounded-md border border-border 
-            bg-background
-          "
+                    inputMode="numeric"
+                    enterKeyHint="next"
+                    className="h-12 w-full rounded-md border border-border bg-background px-3 text-base"
                     placeholder="e.g., 175"
                     {...register("height")}
                 />
@@ -142,11 +135,10 @@ export function ProfileForm() {
                 <input
                     id="weight"
                     type="number"
+                    inputMode="decimal"
+                    enterKeyHint="done"
                     step="0.1"
-                    className="
-            w-full p-2 rounded-md border border-border 
-            bg-background
-          "
+                    className="h-12 w-full rounded-md border border-border bg-background px-3 text-base"
                     placeholder="e.g., 75.5"
                     {...register("weight")}
                 />
@@ -171,7 +163,7 @@ export function ProfileForm() {
                 type="submit"
                 disabled={isLoading || saved}
                 className={`
-          w-full py-2 px-4 rounded-md text-sm font-medium
+          h-12 w-full rounded-xl px-4 text-base font-semibold
           transition
           ${isLoading || saved
                         ? "bg-muted text-muted-foreground cursor-not-allowed"

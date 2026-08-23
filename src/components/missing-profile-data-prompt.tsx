@@ -91,6 +91,8 @@ export default function MissingProfileDataPrompt() {
                         <Input
                             id="height"
                             type="number"
+                            inputMode="numeric"
+                            enterKeyHint="next"
                             placeholder="e.g. 175"
                             value={height}
                             onChange={(e) => setHeight(e.target.value)}
@@ -104,6 +106,8 @@ export default function MissingProfileDataPrompt() {
                         <Input
                             id="weight"
                             type="number"
+                            inputMode="decimal"
+                            enterKeyHint="done"
                             placeholder="e.g. 70"
                             value={weight}
                             onChange={(e) => setWeight(e.target.value)}

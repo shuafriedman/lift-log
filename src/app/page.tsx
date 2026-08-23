@@ -70,13 +70,13 @@ export default function LandingPage() {
   const showError = !isPending && error;
 
   return (
-    <div className="flex flex-col min-h-screen bg-[radial-gradient(1200px_800px_at_50%_-10%,#0f172a,transparent),linear-gradient(to_b,#0b1220,#030712_70%)] text-white">
+    <div className="flex flex-col min-h-dvh bg-[radial-gradient(1200px_800px_at_50%_-10%,#0f172a,transparent),linear-gradient(to_b,#0b1220,#030712_70%)] text-white">
       {/* Loading */}
       {showLoading && <LogoLoading />}
 
       {/* Error */}
       {!showLoading && showError && (
-        <section className="min-h-screen flex flex-col items-center justify-center">
+        <section className="flex min-h-dvh flex-col items-center justify-center px-5">
           <p className="text-red-500 mb-4">{error}</p>
           <HandleLogin />
         </section>

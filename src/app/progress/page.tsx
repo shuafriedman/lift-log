@@ -7,6 +7,8 @@ import { MdDelete } from "react-icons/md";
 import { BiDumbbell } from "react-icons/bi";
 import { AiOutlineCheckCircle } from "react-icons/ai";
 import LogoLoading from "../logo-loading/page";
+import LiftLogMark from "@/components/lift-log-mark";
+import ConfirmSheet from "@/components/confirm-sheet";
 
 export interface DailySummary {
   id: string;
@@ -36,7 +38,7 @@ export default function Progress() {
 
       if (!data.success) throw new Error("Failed to fetch progress");
 
-      setProgress(data.progress);
+      setProgress(Array.isArray(data.progress) ? data.progress : []);
     } catch (err) {
       const errMsg = handleError(err);
       setError(typeof errMsg === "string" ? errMsg : "An error occurred.");
@@ -78,177 +80,117 @@ export default function Progress() {
   if (loading) return <LogoLoading />;
 
   return (
-    <div className="min-h-screen p-6 md:p-8">
-      <div className="max-w-7xl mx-auto space-y-10">
+    <div className="px-4 py-5 md:p-8">
+      <div className="mx-auto max-w-7xl">
         {/* Header */}
-        <div className="dark:bg-neutral-950 rounded-2xl shadow-lift-gradient p-6 md:p-8 mb-8 border border-neutral-800">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div className="flex items-center gap-4">
-              <svg
-                width="70"
-                height="70"
-                viewBox="0 0 64 64"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <defs>
-                  <linearGradient
-                    id="liftlogGradient"
-                    x1="0"
-                    y1="0"
-                    x2="64"
-                    y2="64"
-                    gradientUnits="userSpaceOnUse"
-                  >
-                    <stop offset="0%" stopColor="#34d399" />
-                    <stop offset="50%" stopColor="#5eead4" />
-                    <stop offset="100%" stopColor="#14b8a6" />
-                  </linearGradient>
-                </defs>
-
-                <path
-                  d="M10 26H6V38H10V26ZM18 22H14V42H18V22ZM26 30V26H22V38H26V34H36L30 40L34 44L48 30L34 16L30 20L36 26H26ZM50 22H46V42H50V22ZM58 26H54V38H58V26Z"
-                  fill="url(#liftlogGradient)"
-                />
-              </svg>
-              <div>
-                <h1 className="text-3xl font-bold">My Progress</h1>
-                <p className="text-neutral-400 mt-1">
-                  {progress.length}{" "}
-                  {progress.length === 1 ? "entry" : "entries"} tracked
-                </p>
-              </div>
-            </div>
-
-            <ProgressDialog onsuccess={fetchProgress} />
+        <header className="mb-5 flex items-center gap-3">
+          <LiftLogMark className="h-10 w-10 shrink-0 md:h-14 md:w-14" />
+          <div className="min-w-0">
+            <h1 className="truncate text-2xl font-bold md:text-3xl">
+              My Progress
+            </h1>
+            <p className="text-sm text-neutral-400">
+              {progress.length} {progress.length === 1 ? "entry" : "entries"}{" "}
+              tracked
+            </p>
           </div>
+        </header>
+
+        <div className="mb-6">
+          <ProgressDialog onsuccess={fetchProgress} />
         </div>
 
         {/* Error */}
         {error && (
-          <div className="flex items-center gap-3 p-4 mb-6 border-2 border-red-800 rounded-xl dark:bg-neutral-950">
-            <BiDumbbell className="text-red-500 text-xl" />
-            <p className="text-red-500 font-medium">{error}</p>
+          <div className="mb-5 flex items-center gap-3 rounded-xl border-2 border-red-800 p-4 dark:bg-neutral-950">
+            <BiDumbbell className="shrink-0 text-xl text-red-500" />
+            <p className="font-medium text-red-500">{error}</p>
           </div>
         )}
 
         {/* Empty State */}
         {progress.length === 0 && !error && (
-          <div className="rounded-2xl shadow-xl p-12 text-center border border-neutral-800 dark:bg-neutral-950">
-            <div className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6">
-              <BiDumbbell className="text-5xl text-gray-400" />
-            </div>
-            <h3 className="text-2xl font-bold mb-3">No Progress Yet</h3>
-            <p className="mb-6 max-w-md mx-auto">
+          <div className="rounded-2xl border border-neutral-800 px-6 py-10 text-center dark:bg-neutral-950">
+            <BiDumbbell className="mx-auto mb-4 text-5xl text-gray-400" />
+            <h3 className="mb-2 text-xl font-bold">No Progress Yet</h3>
+            <p className="mx-auto mb-5 max-w-md text-sm text-neutral-400">
               Track your fitness journey by adding your first progress entry!
             </p>
-            <div className="flex items-center justify-center gap-2 text-gray-400">
-              <AiOutlineCheckCircle className="text-xl" />
+            <div className="flex items-center justify-center gap-2 text-sm text-gray-400">
+              <AiOutlineCheckCircle className="text-lg" />
               <span className="font-medium">
-                Click &quot;Add Workout Session&quot; to begin
+                Tap &quot;Add Workout Session&quot; to begin
               </span>
             </div>
           </div>
         )}
 
-        {/* Progress Cards */}
+        {/* Entries. A dense row per day reads better on a phone than a card
+            with a 24px icon block and two stacked stat boxes. */}
         {progress.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {progress.map((entry, index) => (
-              <div
+              <article
                 key={entry.id}
-                className="relative group rounded-2xl backdrop-blur-xl border border-teal-950 shadow-lg hover:shadow-black/50 dark:hover:shadow-teal-500 transition-all duration-500 overflow-hidden p-[1px]"
+                className="flex items-center gap-3 rounded-2xl border border-teal-950 p-4 shadow-lg backdrop-blur-xl"
                 style={{
-                  animation: `fadeIn 0.5s ease-out ${index * 0.1}s both`,
+                  animation: `fadeIn 0.4s ease-out ${Math.min(index, 6) * 0.06}s both`,
                 }}
               >
-                {/* Card Header */}
-                <div className="p-6 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-16 translate-x-16 blur-2xl" />
-                  <div className="relative z-10 flex items-start justify-between">
-                    <div className="p-3 rounded-xl backdrop-blur-sm">
-                      <BiDumbbell className="text-2xl" />
-                    </div>
-
-                    <button
-                      onClick={() => {
-                        setSelectedId(entry.id);
-                        setShowDeleteModal(true);
-                      }}
-                      disabled={deleteId === entry.id}
-                      className="hover:bg-red-600 p-2 rounded-lg backdrop-blur-sm transition-all duration-200 disabled:opacity-50"
-                      title="Delete entry"
-                      aria-label="Delete entry"
-                    >
-                      <MdDelete className="text-lg" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Card Body */}
-                <div className="p-6">
-                  <h3 className="text-xl font-bold mb-3">
+                <div className="min-w-0 flex-1">
+                  <h3 className="truncate text-base font-bold">
                     {new Date(entry.date).toLocaleDateString(undefined, {
-                      weekday: "long",
+                      weekday: "short",
                       month: "short",
                       day: "numeric",
                     })}
                   </h3>
-
-                  <div className="grid grid-cols-1 gap-4 mt-4">
-                    <div className="rounded-xl p-4 border border-neutral-800">
-                      <p className="text-sm text-neutral-400">Calories Burned</p>
-                      <p className="text-2xl font-bold">{entry.caloriesBurned}</p>
-                    </div>
-
+                  <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                    <p className="text-sm text-neutral-400">
+                      <span className="text-xl font-bold text-lift-gradient">
+                        {entry.caloriesBurned}
+                      </span>{" "}
+                      kcal
+                    </p>
                     {entry.weight !== null && (
-                      <div className="rounded-xl p-4 border border-neutral-800">
-                        <p className="text-sm text-neutral-400">Weight</p>
-                        <p className="text-2xl font-bold">{entry.weight} kg</p>
-                      </div>
+                      <p className="text-sm text-neutral-400">
+                        <span className="text-xl font-bold text-lift-gradient">
+                          {entry.weight}
+                        </span>{" "}
+                        kg
+                      </p>
                     )}
                   </div>
                 </div>
-              </div>
+
+                <button
+                  onClick={() => {
+                    setSelectedId(entry.id);
+                    setShowDeleteModal(true);
+                  }}
+                  disabled={deleteId === entry.id}
+                  className="touch-target tap-scale flex shrink-0 items-center justify-center rounded-xl text-neutral-500 active:text-red-400 disabled:opacity-50"
+                  aria-label="Delete entry"
+                >
+                  <MdDelete className="text-xl" />
+                </button>
+              </article>
             ))}
           </div>
         )}
       </div>
 
-      {/* DELETE CONFIRMATION MODAL */}
-      {showDeleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-neutral-900 border border-neutral-800 rounded-2xl p-6 w-[90%] max-w-md shadow-xl animate-fadeInDown">
-            <h2 className="text-2xl font-bold mb-4 text-red-400">
-              Delete This Entry?
-            </h2>
-
-            <p className="text-neutral-300 mb-6">
-              This action cannot be undone. Are you sure you want to delete this progress entry?
-            </p>
-
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => {
-                  setShowDeleteModal(false);
-                  setSelectedId(null);
-                }}
-                className="px-4 py-2 rounded-xl border border-neutral-700 hover:bg-neutral-800 transition"
-              >
-                Cancel
-              </button>
-
-              <button
-                onClick={confirmDelete}
-                disabled={deleteId === selectedId}
-                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 transition disabled:opacity-50"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmSheet
+        open={showDeleteModal}
+        title="Delete this entry?"
+        body="This action cannot be undone."
+        busy={deleteId !== null}
+        onCancel={() => {
+          setShowDeleteModal(false);
+          setSelectedId(null);
+        }}
+        onConfirm={confirmDelete}
+      />
 
       {/* Styles */}
       <style jsx>{`

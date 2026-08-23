@@ -111,27 +111,27 @@ export default function WorkoutDialog({ onWorkoutCreated }: WorkoutDialogProps) 
       }}
     >
       <DialogTrigger asChild>
-        <Button className="relative flex items-center gap-2 shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 font-semibold px-6 py-3 rounded-xl overflow-hidden group">
+        <Button className="tap-scale group relative flex h-14 w-full items-center justify-center gap-2 overflow-hidden rounded-2xl font-semibold shadow-lg transition-all duration-300 md:h-12 md:w-auto md:px-6">
           <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
           <IoMdAdd className="text-xl relative z-10" />
           <span className="relative z-10">Add Workout</span>
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-xl p-0 rounded-3xl shadow-2xl bg-neutral-950 border-0 overflow-hidden max-h-[90vh] overflow-y-auto">
-        <div className="bg-black p-8 text-white relative overflow-hidden">
+      <DialogContent className="gap-0 border-neutral-800 bg-neutral-950 p-0 shadow-2xl sm:max-w-xl">
+        <div className="relative overflow-hidden bg-black p-5 text-white sm:p-8">
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-32 translate-x-32 blur-3xl" />
           <div className="absolute bottom-0 left-0 w-48 h-48 bg-neutral-900/40 rounded-full translate-y-24 -translate-x-24 blur-2xl" />
           <DialogHeader className="relative z-10">
             <div className="flex items-center gap-4">
-              <div className="bg-neutral-800 p-4 rounded-2xl backdrop-blur-sm border border-neutral-900 shadow-lg">
-                <MdFitnessCenter className="text-4xl text-white" />
+              <div className="rounded-2xl border border-neutral-900 bg-neutral-800 p-3 shadow-lg backdrop-blur-sm sm:p-4">
+                <MdFitnessCenter className="text-3xl text-white sm:text-4xl" />
               </div>
               <div className="flex-1">
-                <DialogTitle className="text-3xl font-bold mb-1 text-white">
+                <DialogTitle className="mb-1 text-2xl font-bold text-white sm:text-3xl">
                   New Workout
                 </DialogTitle>
-                <p className="text-neutral-400 text-base">
+                <p className="text-sm text-neutral-400 sm:text-base">
                   Track your workouts by creating new routines
                 </p>
               </div>
@@ -139,9 +139,10 @@ export default function WorkoutDialog({ onWorkoutCreated }: WorkoutDialogProps) 
           </DialogHeader>
         </div>
 
-        <div className="p-8 space-y-6 bg-black">
+        <div className="space-y-5 bg-black p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:p-8">
           <Input
             placeholder="Workout Name"
+            enterKeyHint="done"
             value={name}
             onChange={(e) => setName(e.target.value)}
             disabled={loading}
@@ -149,21 +150,21 @@ export default function WorkoutDialog({ onWorkoutCreated }: WorkoutDialogProps) 
           />
 
           {/* Exercise selection */}
-          <div className="max-h-64 overflow-y-auto border border-neutral-800 rounded-xl p-3 bg-neutral-900">
+          <div className="scroll-area max-h-[40dvh] overflow-y-auto border border-neutral-800 rounded-xl p-3 bg-neutral-900">
             {(exercises || []).length > 0 ? (
               (exercises || []).map((ex) => (
                 <label
                   key={ex.id}
-                  className="flex items-center gap-3 py-2 px-3 cursor-pointer hover:bg-neutral-800 rounded-lg transition-colors"
+                  className="flex min-h-12 cursor-pointer items-center gap-3 rounded-lg px-3 py-2 transition-colors active:bg-neutral-800"
                 >
                   <input
                     type="checkbox"
                     checked={selectedExercises.includes(ex.id)}
                     onChange={() => toggleExercise(ex.id)}
-                    className="w-4 h-4 accent-blue-500"
+                    className="h-5 w-5 shrink-0 accent-emerald-500"
                     disabled={loading}
                   />
-                  <span className="text-white">{ex.name}</span>
+                  <span className="text-base text-white">{ex.name}</span>
                 </label>
               ))
             ) : (

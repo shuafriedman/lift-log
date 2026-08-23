@@ -4,37 +4,34 @@ import { usePathname } from "next/navigation";
 import React from "react";
 import Navbar from "../navbar";
 import Footer from "../footer";
-import { SidebarProvider } from "../ui/sidebar";
 import AppSidebar from "./app-sidebar";
+import BottomNav from "../nav/bottom-nav";
+import MobileTopBar from "../nav/mobile-top-bar";
 
+/** Routes that render bare, with no app chrome at all. */
+const NO_LAYOUT_ROUTES = ["/metrics"];
+
+/** Marketing routes: marketing navbar + footer, no app navigation. */
+const MARKETING_ROUTES = ["/"];
+
+/**
+ * Picks the shell for the current route.
+ *
+ * The app shell is mobile-first: below `md` it is a top bar plus a fixed
+ * bottom tab bar, and the sidebar only appears from `md` up.
+ */
 export default function ConditionalSidebar({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [mounted, setMounted] = React.useState(false);
-
-  React.useEffect(() => {
-    setMounted(true);
-  }, []);
-
   const pathname = usePathname();
 
-  if (!mounted) return null;
-
-  // Pages that should show NO layout at all
-  const noLayoutPages = ["/metrics"];
-
-  // Pages that should show ONLY navbar + footer
-  const navbarFooterPages = ["/"];
-
-  // CASE 1 → Only children (metrics page)
-  if (noLayoutPages.includes(pathname)) {
+  if (NO_LAYOUT_ROUTES.includes(pathname)) {
     return <>{children}</>;
   }
 
-  // CASE 2 → Show navbar + footer (homepage)
-  if (navbarFooterPages.includes(pathname)) {
+  if (MARKETING_ROUTES.includes(pathname)) {
     return (
       <>
         <Navbar />
@@ -44,11 +41,15 @@ export default function ConditionalSidebar({
     );
   }
 
-  // CASE 3 → All other pages → Sidebar layout
   return (
-    <SidebarProvider className="flex h-screen">
+    <div className="flex min-h-dvh">
       <AppSidebar />
-      <main className="flex-1 overflow-y-auto">{children}</main>
-    </SidebarProvider>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <MobileTopBar />
+        {/* `pb-nav` keeps content clear of the fixed tab bar on mobile. */}
+        <main className="flex-1 pb-nav">{children}</main>
+      </div>
+      <BottomNav />
+    </div>
   );
 }

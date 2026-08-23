@@ -64,7 +64,7 @@ export default function EditProfileDialog() {
                 <Button
                     variant="ghost"
                     size="sm"
-                    className="gap-2 text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
+                    className="gap-2 text-zinc-400 transition-colors hover:bg-white/10 hover:text-white"
                 >
                     <Pencil className="w-4 h-4" />
                     Edit Profile
@@ -85,6 +85,8 @@ export default function EditProfileDialog() {
                         <Input
                             id="edit-height"
                             type="number"
+                            inputMode="numeric"
+                            enterKeyHint="next"
                             placeholder="e.g. 175"
                             value={height}
                             onChange={(e) => setHeight(e.target.value)}
@@ -98,6 +100,8 @@ export default function EditProfileDialog() {
                         <Input
                             id="edit-weight"
                             type="number"
+                            inputMode="decimal"
+                            enterKeyHint="done"
                             placeholder="e.g. 70"
                             value={weight}
                             onChange={(e) => setWeight(e.target.value)}
@@ -107,8 +111,8 @@ export default function EditProfileDialog() {
                         />
                     </div>
                     <DialogFooter>
-                        <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-                        <Button type="submit" disabled={loading}>
+                        <Button type="button" size="lg" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+                        <Button type="submit" size="lg" disabled={loading}>
                             {loading ? "Saving..." : "Save Changes"}
                         </Button>
                     </DialogFooter>

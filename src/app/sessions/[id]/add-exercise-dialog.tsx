@@ -184,13 +184,13 @@ export default function AddExerciseDialog({
       }}
     >
       <DialogTrigger asChild>
-        <Button className="flex items-center gap-2 font-semibold px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white h-12">
-          <IoMdAdd className="text-xl" /> Add Exercise
+        <Button className="tap-scale flex h-14 flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-600 text-base font-semibold text-white hover:bg-emerald-500 md:h-12 md:flex-none md:px-5">
+          <IoMdAdd className="text-xl" /> Add exercise
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-md p-0 rounded-3xl shadow-2xl bg-neutral-950 border border-neutral-800 overflow-hidden max-h-[90vh] overflow-y-auto">
-        <div className="bg-black p-6">
+      <DialogContent className="gap-0 border-neutral-800 bg-neutral-950 p-0 shadow-2xl sm:max-w-md">
+        <div className="bg-black p-5 sm:p-6">
           <DialogHeader>
             <div className="flex items-center gap-3">
               <div className="bg-neutral-800 p-3 rounded-2xl border border-neutral-900">
@@ -203,7 +203,7 @@ export default function AddExerciseDialog({
           </DialogHeader>
         </div>
 
-        <div className="p-6 space-y-4 bg-black">
+        <div className="space-y-4 bg-black p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:p-6">
           {mode === "mine" ? (
             selected ? (
               // Selected exercise from My Exercises
@@ -260,7 +260,7 @@ export default function AddExerciseDialog({
                   </div>
                 )}
 
-                <div className="max-h-[22rem] overflow-y-auto space-y-2 pr-1">
+                <div className="scroll-area max-h-[45dvh] space-y-2 overflow-y-auto pr-1">
                   {libraryLoading && library.length === 0 ? (
                     <p className="text-center text-neutral-500 py-8 text-sm">
                       Loading your exercises…
@@ -432,7 +432,7 @@ export default function AddExerciseDialog({
                   value={sets}
                   onChange={(e) => setSets(e.target.value)}
                   disabled={loading}
-                  className="border-2 border-neutral-800 focus:border-emerald-600 rounded-xl text-white bg-neutral-950 h-11 px-3"
+                  className="h-12 rounded-xl border-2 border-neutral-800 bg-neutral-950 px-3 text-center text-lg text-white focus:border-emerald-600"
                 />
               </div>
               <div>
@@ -446,7 +446,7 @@ export default function AddExerciseDialog({
                   value={reps}
                   onChange={(e) => setReps(e.target.value)}
                   disabled={loading}
-                  className="border-2 border-neutral-800 focus:border-emerald-600 rounded-xl text-white bg-neutral-950 h-11 px-3"
+                  className="h-12 rounded-xl border-2 border-neutral-800 bg-neutral-950 px-3 text-center text-lg text-white focus:border-emerald-600"
                 />
               </div>
               <div>
@@ -460,7 +460,7 @@ export default function AddExerciseDialog({
                   value={weight}
                   onChange={(e) => setWeight(e.target.value)}
                   disabled={loading}
-                  className="border-2 border-neutral-800 focus:border-emerald-600 rounded-xl text-white bg-neutral-950 h-11 px-3"
+                  className="h-12 rounded-xl border-2 border-neutral-800 bg-neutral-950 px-3 text-center text-lg text-white focus:border-emerald-600"
                 />
               </div>
             </div>
@@ -472,16 +472,16 @@ export default function AddExerciseDialog({
             <Button
               onClick={() => setOpen(false)}
               disabled={loading}
-              className="flex-1 border-2 border-neutral-800 hover:bg-neutral-900 text-white font-semibold rounded-xl h-11 bg-black"
+              className="h-12 flex-1 rounded-xl border-2 border-neutral-800 bg-black font-semibold text-white hover:bg-neutral-900"
             >
               Cancel
             </Button>
             <Button
               onClick={handleAdd}
               disabled={loading || !canSubmit}
-              className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl h-11 disabled:opacity-50"
+              className="h-12 flex-1 rounded-xl bg-emerald-600 font-bold text-white hover:bg-emerald-500 disabled:opacity-50"
             >
-              {loading ? "Adding..." : mode === "new" ? "Save & Add" : "Add"}
+              {loading ? "Adding…" : mode === "new" ? "Save & Add" : "Add"}
             </Button>
           </div>
         </div>

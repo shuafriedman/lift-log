@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import WorkoutDialog from "./workout-dialog";
 import { handleError } from "@/components/error-handle";
 import LogoLoading from "../logo-loading/page";
+import LiftLogMark from "@/components/lift-log-mark";
+import { ChevronRight, X } from "lucide-react";
 
 interface Exercise {
   id: string;
@@ -58,93 +60,44 @@ export default function WorkoutsPage() {
   }
 
   return (
-    <div className="min-h-screen p-6 md:p-8">
-      {open && workout && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50">
-
-          {/* Modal container */}
-          <div className="relative shadow-lift-gradient bg-neutral-900 p-6 rounded-xl w-[90%] max-w-lg">
-
-            {/* Close button */}
-            <button
-              className="absolute right-4 top-4 px-3 py-1 rounded-md border text-lg"
-              onClick={() => setOpen(false)}
-            >
-              ✕
-            </button>
-
-            <h2 className="text-2xl font-bold mb-4">{workout.name}</h2>
-
-            <p className="mb-2 font-semibold">Exercises:</p>
-            <ul className="list-disc pl-5 space-y-1">
-              {workout.workoutExercises?.map((we) => (
-                <li key={`${we.id}-${we.Exercise.id}`}>{we.Exercise?.name}</li>
-              ))}
-            </ul>
-          </div>
-
-        </div>
-      )}
-      <div className="max-w-7xl mx-auto">
+    <div className="px-4 py-5 md:p-8">
+      <div className="mx-auto max-w-7xl">
         {/* Header */}
         <header
-          className="rounded-2xl shadow-lift-gradient p-6 md:p-8 mb-8 border border-neutral-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
+          className="mb-5 flex items-center gap-3"
           aria-label="Workouts header"
         >
-          <div className="flex items-center gap-4">
-            <svg
-              width="70"
-              height="70"
-              viewBox="0 0 64 64"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
+          <LiftLogMark className="h-10 w-10 shrink-0 md:h-14 md:w-14" />
+          <div className="min-w-0">
+            <h1 className="truncate text-2xl font-bold md:text-3xl">
+              My Workouts
+            </h1>
+            <p
+              className="text-sm text-neutral-400"
+              aria-live="polite"
+              aria-atomic="true"
             >
-              <defs>
-                <linearGradient
-                  id="liftlogGradient"
-                  x1="0"
-                  y1="0"
-                  x2="64"
-                  y2="64"
-                  gradientUnits="userSpaceOnUse"
-                >
-                  <stop offset="0%" stopColor="#34d399" />
-                  <stop offset="50%" stopColor="#5eead4" />
-                  <stop offset="100%" stopColor="#14b8a6" />
-                </linearGradient>
-              </defs>
-
-              <path
-                d="M10 26H6V38H10V26ZM18 22H14V42H18V22ZM26 30V26H22V38H26V34H36L30 40L34 44L48 30L34 16L30 20L36 26H26ZM50 22H46V42H50V22ZM58 26H54V38H58V26Z"
-                fill="url(#liftlogGradient)"
-              />
-            </svg>
-            <div>
-              <h1 className="text-3xl font-bold">My Workouts</h1>
-              <p
-                className="text-neutral-400 mt-1"
-                aria-live="polite"
-                aria-atomic="true"
-              >
-                {workouts.length}{" "}
-                {workouts.length === 1 ? "workout" : "workouts"} tracked
-              </p>
-            </div>
+              {workouts.length} {workouts.length === 1 ? "workout" : "workouts"}{" "}
+              tracked
+            </p>
           </div>
-          <WorkoutDialog onWorkoutCreated={fetchWorkouts} />
         </header>
+
+        <div className="mb-6">
+          <WorkoutDialog onWorkoutCreated={fetchWorkouts} />
+        </div>
 
         {/* Error */}
         {status === "error" && (
           <section
-            className="text-red-400 text-center mb-8"
+            className="mb-6 text-center text-red-400"
             role="alert"
             aria-live="assertive"
           >
             <p>{errorMessage}</p>
             <button
               onClick={fetchWorkouts}
-              className="mt-4 bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg"
+              className="mt-4 h-12 rounded-xl bg-red-600 px-5 font-semibold"
               aria-label="Retry loading workouts"
             >
               Retry
@@ -155,80 +108,112 @@ export default function WorkoutsPage() {
         {/* Empty State */}
         {!errorMessage && workouts.length === 0 && (
           <section
-            className="bg-neutral-950 rounded-2xl shadow-xl p-12 text-center border border-neutral-800"
+            className="rounded-2xl border border-neutral-800 bg-neutral-950 px-6 py-10 text-center"
             aria-live="polite"
             aria-atomic="true"
           >
-            <h3 className="text-2xl font-bold mb-3">No Workouts Yet</h3>
-            <p className="mb-6 max-w-md mx-auto">
+            <h3 className="mb-2 text-xl font-bold">No Workouts Yet</h3>
+            <p className="mx-auto max-w-md text-sm text-neutral-400">
               Start tracking your fitness journey by adding your first workout
               using the button above!
             </p>
           </section>
         )}
 
-        {/* Workout Grid */}
+        {/* Workout list */}
         {!errorMessage && workouts.length > 0 && (
           <section
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+            className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
             aria-label="List of workouts"
           >
             {workouts.map((w, index) => (
-              <article
+              /* The card itself opens the detail sheet. It used to hide a
+                 "View Details" button behind :hover, so on a touch screen
+                 there was no way to open a workout at all. */
+              <button
                 key={w.id}
-                className="relative group rounded-2xl backdrop-blur-xl border border-teal-950 shadow-lg hover:shadow-black/50 dark:hover:shadow-teal-500 transition-all duration-500 overflow-hidden p-[1px]"
-                style={{
-                  animation: `fadeIn 0.5s ease-out ${index * 0.1}s both`,
-                }}
-                tabIndex={0}
+                type="button"
+                onClick={() => viewDetails(w)}
                 aria-labelledby={`workout-title-${w.id}`}
+                className="tap-scale w-full rounded-2xl border border-teal-950 p-4 text-left shadow-lg backdrop-blur-xl"
+                style={{
+                  animation: `fadeIn 0.4s ease-out ${Math.min(index, 6) * 0.06}s both`,
+                }}
               >
-                {/* Glow border effect */}
-                <div className="absolute inset-0 bg-gradient-to-br via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl"></div>
-
-                {/* Card content */}
-                <div className="relative z-10 p-6 rounded-2xl backdrop-blur-md">
-                  <div className="flex justify-between items-start">
-                    <h3
-                      id={`workout-title-${w.id}`}
-                      className="text-2xl font-semibold tracking-tight"
-                    >
-                      {w.name}
-                    </h3>
-
-                    <span className="text-xs px-3 py-1 rounded-full border">
-                      {w.workoutExercises?.length || 0}{" "}
-                      {w.workoutExercises?.length === 1
-                        ? "Exercise"
-                        : "Exercises"}
-                    </span>
-                  </div>
-
-                  <p
-                    className="mt-3 text-sm leading-relaxed"
-                    aria-label={`Exercises: ${w.workoutExercises?.length || 0}`}
+                <div className="flex items-start justify-between gap-3">
+                  <h3
+                    id={`workout-title-${w.id}`}
+                    className="min-w-0 flex-1 text-lg font-semibold tracking-tight"
                   >
-                    {w.workoutExercises?.length
-                      ? w.workoutExercises
+                    {w.name}
+                  </h3>
+
+                  <span className="shrink-0 rounded-full border px-2.5 py-1 text-[11px] whitespace-nowrap">
+                    {w.workoutExercises?.length || 0}{" "}
+                    {w.workoutExercises?.length === 1 ? "exercise" : "exercises"}
+                  </span>
+                </div>
+
+                <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-neutral-400">
+                  {w.workoutExercises?.length
+                    ? w.workoutExercises
                         .map((we) => we.Exercise?.name || "Unnamed Exercise")
                         .join(", ")
-                      : "No exercises yet"}
-                  </p>
+                    : "No exercises yet"}
+                </p>
 
-                  {/* Hover actions */}
-                  <div className="flex justify-end mt-6 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                    <button
-                      onClick={() => viewDetails(w)}
-                      className="px-4 py-2 text-sm rounded-xl font-medium border transition-colors duration-300">
-                      View Details
-                    </button>
-                  </div>
-                </div>
-              </article>
+                <span className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-emerald-400">
+                  View details <ChevronRight className="h-4 w-4" />
+                </span>
+              </button>
             ))}
           </section>
         )}
       </div>
+
+      {/* Detail sheet: bottom-anchored on mobile, centred from `sm` up. */}
+      {open && workout && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center"
+          onClick={() => setOpen(false)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="scroll-area max-h-[85dvh] w-full overflow-y-auto rounded-t-2xl border-t border-neutral-800 bg-neutral-900 p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] shadow-lift-gradient sm:max-w-lg sm:rounded-2xl sm:border sm:pb-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <h2 className="text-xl font-bold">{workout.name}</h2>
+              <button
+                className="touch-target tap-scale -mt-1 -mr-1 flex shrink-0 items-center justify-center rounded-full text-neutral-400"
+                onClick={() => setOpen(false)}
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <p className="mb-2 text-sm font-semibold text-neutral-300">
+              Exercises
+            </p>
+            {workout.workoutExercises?.length ? (
+              <ul className="space-y-2">
+                {workout.workoutExercises.map((we) => (
+                  <li
+                    key={`${we.id}-${we.Exercise.id}`}
+                    className="rounded-xl border border-neutral-800 px-4 py-3"
+                  >
+                    {we.Exercise?.name}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-neutral-500">No exercises yet.</p>
+            )}
+          </div>
+        </div>
+      )}
 
       <style jsx>{`
         @keyframes fadeIn {

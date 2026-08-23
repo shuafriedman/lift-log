@@ -114,8 +114,48 @@
   * {
     @apply border-border outline-ring/50;
   }
+
+  html {
+    /* Stop Android/iOS from inflating text in landscape. */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    /* Full viewport height that ignores the collapsing browser chrome. */
+    min-height: 100dvh;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    min-height: 100dvh;
+    /* No grey flash box when tapping on Android Chrome. */
+    -webkit-tap-highlight-color: transparent;
+    /* A stray wide child should never make the whole app pannable. */
+    overflow-x: hidden;
+    /* Don't let a scroll at the top of a page pull in the browser's refresh. */
+    overscroll-behavior-y: contain;
+  }
+
+  /* Kill the 300ms tap delay and double-tap-to-zoom on anything tappable. */
+  button,
+  a,
+  label,
+  select,
+  [role="button"],
+  [role="tab"] {
+    touch-action: manipulation;
+  }
+
+  /* Inputs must stay >= 16px on mobile or Android/iOS zoom the page on focus. */
+  input,
+  textarea,
+  select {
+    font-size: max(16px, 1rem);
+  }
+  @media (min-width: 768px) {
+    input,
+    textarea,
+    select {
+      font-size: inherit;
+    }
   }
 }
 
@@ -132,5 +172,75 @@
       0 0 8px rgba(94, 234, 212, 0.20),
       0 0 12px rgba(20, 184, 166, 0.18);
   }
-  
+
+  /* ---- Mobile layout helpers -------------------------------------------- */
+
+  /* Notch / home-indicator padding. Safe to use on any device: the insets
+     resolve to 0px where there is no cutout. */
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .px-safe {
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+
+  /* Room for the fixed bottom tab bar so content never hides behind it. */
+  .pb-nav {
+    padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+  }
+  @media (min-width: 768px) {
+    .pb-nav {
+      padding-bottom: 2rem;
+    }
+  }
+
+  /* A control that is comfortable to hit with a thumb (WCAG 2.5.5: 44px). */
+  .touch-target {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+  }
+
+  /* Horizontal scrollers (chips, filters) without a visible scrollbar. */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Momentum scrolling for inner scroll areas, and don't chain to the page. */
+  .scroll-area {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  /* Actions that used to be hidden behind :hover. On a touch screen there is
+     no hover, so they must stay visible; only fade them in on real pointers. */
+  .reveal-on-hover {
+    opacity: 1;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .reveal-on-hover {
+      opacity: 0;
+      transition: opacity 200ms ease;
+    }
+    .group:hover .reveal-on-hover,
+    .reveal-on-hover:focus-visible,
+    .group:focus-within .reveal-on-hover {
+      opacity: 1;
+    }
+  }
+
+  /* Press feedback that reads as native on a touch device. */
+  .tap-scale {
+    transition: transform 120ms ease, background-color 120ms ease;
+  }
+  .tap-scale:active {
+    transform: scale(0.97);
+  }
 }

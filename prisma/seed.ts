@@ -25,29 +25,42 @@ async function main() {
   const file = join(__dirname, "seed-data", "exercises.json");
   const exercises = JSON.parse(readFileSync(file, "utf8")) as RawExercise[];
 
-  console.log(`Seeding ${exercises.length} catalog exercises...`);
+  // This runs on every deploy, so bail out cheaply once the catalog matches the
+  // dataset. Set FORCE_SEED=1 to re-write the rows anyway.
+  const existing = await prisma.exerciseCatalog.count();
+  if (existing === exercises.length && !process.env.FORCE_SEED) {
+    console.log(`Catalog already has ${existing} exercises — skipping seed.`);
+    return;
+  }
 
-  for (const ex of exercises) {
-    // Dataset stores images as "Slug/0.jpg"; we vendored them under /public/exercises.
-    const images = ex.images.map((img) => `/exercises/${img}`);
-    const data = {
-      name: ex.name,
-      force: ex.force,
-      level: ex.level,
-      mechanic: ex.mechanic,
-      equipment: ex.equipment,
-      category: ex.category,
-      primaryMuscles: ex.primaryMuscles ?? [],
-      secondaryMuscles: ex.secondaryMuscles ?? [],
-      instructions: ex.instructions ?? [],
-      images,
-    };
+  // Dataset stores images as "Slug/0.jpg"; we vendored them under /public/exercises.
+  const rows = exercises.map((ex) => ({
+    id: ex.id,
+    name: ex.name,
+    force: ex.force,
+    level: ex.level,
+    mechanic: ex.mechanic,
+    equipment: ex.equipment,
+    category: ex.category,
+    primaryMuscles: ex.primaryMuscles ?? [],
+    secondaryMuscles: ex.secondaryMuscles ?? [],
+    instructions: ex.instructions ?? [],
+    images: ex.images.map((img) => `/exercises/${img}`),
+  }));
 
-    await prisma.exerciseCatalog.upsert({
-      where: { id: ex.id },
-      create: { id: ex.id, ...data },
-      update: data,
-    });
+  console.log(`Seeding ${rows.length} catalog exercises (have ${existing})...`);
+
+  if (existing === 0) {
+    // Cold database (a fresh deploy target): one bulk insert beats 873 round trips.
+    await prisma.exerciseCatalog.createMany({ data: rows, skipDuplicates: true });
+  } else {
+    for (const { id, ...data } of rows) {
+      await prisma.exerciseCatalog.upsert({
+        where: { id },
+        create: { id, ...data },
+        update: data,
+      });
+    }
   }
 
   const total = await prisma.exerciseCatalog.count();

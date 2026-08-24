@@ -426,8 +426,12 @@ export default function AddExerciseDialog({
           )}
 
           {/* Sets / reps / weight for this log entry. Logging an exercise
-              from My Exercises with new numbers updates it there too. */}
-          {(mode === "new" || selected) && (
+              from My Exercises with new numbers updates it there too. The
+              catalog picker is its own scroll area and fills a phone screen,
+              so these only appear once there's an exercise to attach them to. */}
+          {(selected ||
+            (mode === "new" &&
+              (newSource === "custom" || catalogId != null))) && (
             <div className="space-y-3">
               {selected && (
                 <p className="text-xs text-neutral-400">

@@ -182,6 +182,10 @@ export default function ExerciseDialog({ onsuccess }: ExerciseDialogProps) {
     setCatalogImage(null);
   };
 
+  // Custom names are typed straight in, so the rest of the form is useful from
+  // the start; from the library it only makes sense once something is picked.
+  const showDetails = mode === "custom" || catalogId != null;
+
   return (
     <Dialog
       open={open}
@@ -312,6 +316,11 @@ export default function ExerciseDialog({ onsuccess }: ExerciseDialogProps) {
             </div>
           )}
 
+          {/* Browsing the library, the picker is its own scroll area and fills
+              a phone screen — everything below it is out of reach. So the
+              photo and the numbers only appear once an exercise is picked. */}
+          {showDetails && (
+            <>
           {/* Your own photo — optional, replaces the stock catalog image */}
           <div className="flex items-center gap-3 rounded-xl border border-neutral-800 bg-neutral-950 p-3">
             <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg bg-neutral-900 flex items-center justify-center">
@@ -405,6 +414,8 @@ export default function ExerciseDialog({ onsuccess }: ExerciseDialogProps) {
             max={1000}
             disabled={loading}
           />
+            </>
+          )}
 
           {message && (
             <div

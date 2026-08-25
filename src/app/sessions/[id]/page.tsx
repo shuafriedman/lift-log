@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useCallback, use } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { handleError } from "@/components/error-handle";
 import LogoLoading from "../../logo-loading/page";
 import AddExerciseDialog from "./add-exercise-dialog";
-import { CheckCircle2, Trash2, Dumbbell } from "lucide-react";
+import { CheckCircle2, Trash2, Dumbbell, LineChart } from "lucide-react";
 import ConfirmSheet from "@/components/confirm-sheet";
 import NumberStepper from "@/components/number-stepper";
 
@@ -347,6 +348,16 @@ export default function SessionDetailPage({
                       .join("  ·  ") || (isActive ? "Tap to set sets/reps" : "No details")}
                   </p>
                 </button>
+
+                {/* Straight to this lift's history — useful mid-session for
+                    "what did I hit last time?", and after it for the trend. */}
+                <Link
+                  href={`/progress?exercise=${encodeURIComponent(entry.name)}`}
+                  className="touch-target tap-scale flex shrink-0 items-center justify-center rounded-xl text-neutral-500 active:text-teal-300"
+                  aria-label={`Progress for ${entry.name}`}
+                >
+                  <LineChart className="h-5 w-5" />
+                </Link>
 
                 {isActive && (
                   <button

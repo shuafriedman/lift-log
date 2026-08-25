@@ -12,61 +12,30 @@ async function getSession() {
   return session;
 }
 
-// GET all progress for the current user
+// GET the user's hand-logged body metrics.
+// What was lifted lives on WorkoutSession/SessionExercise — see
+// /api/progress/summary for the rolled-up training view.
 export async function GET() {
   try {
     const session = await getSession();
 
     const progressData = await prisma.progress.findMany({
-      where: { userId: session.user.id },
-      orderBy: { date: "asc" },
+      // Rows auto-created per exercise on session finish are marked "session"
+      // and excluded: they were a bug, not something the user logged.
+      where: { userId: session.user.id, source: "manual" },
+      orderBy: { date: "desc" },
       include: { workout: true },
     });
 
     const result = progressData.map((p) => ({
       id: p.id,
       date: p.date.toISOString(),
-      workout: p.workout?.name ?? "Unknown Workout",
+      workout: p.workout?.name ?? null,
       weight: p.weight ?? null,
       caloriesBurned: p.caloriesBurned ?? null,
     }));
 
-    const weeklyData = () => {
-      const weeks: Record<string, typeof result> = {};
-
-      for (const entry of result) {
-        const date = new Date(entry.date);
-
-        const sunday = new Date(date);
-        sunday.setHours(0, 0, 0, 0);
-        sunday.setDate(sunday.getDate() - sunday.getDay());
-
-        const weekKey = sunday.toISOString().split("T")[0];
-
-        if (!weeks[weekKey]) weeks[weekKey] = [];
-        weeks[weekKey].push(entry);
-      }
-      return Object.entries(weeks).map(([weekStart, entries]) => {
-        return {
-          weekStart,
-          totalWorkouts: entries.length,
-          avgWeight:
-            entries.reduce((sum, e) => sum + (e.weight ?? 0), 0) /
-            entries.filter((e) => e.weight != null).length || null,
-          totalCaloriesBurned: entries.reduce(
-            (sum, e) => sum + (e.caloriesBurned ?? 0),
-            0
-          ),
-          entries,
-        };
-      });
-    };
-
-    return NextResponse.json({
-      success: true,
-      progress: result,
-      weekly: weeklyData(),
-    });
+    return NextResponse.json({ success: true, progress: result });
   } catch (error: unknown) {
     console.error(error);
     return NextResponse.json(
@@ -76,84 +45,40 @@ export async function GET() {
   }
 }
 
-// POST new progress entry + update streak
+// POST a body-metric entry.
+// This no longer touches the streak: the streak counts days you trained, and
+// stepping on a scale isn't training. Finishing a session is what bumps it.
 export async function POST(req: Request) {
   try {
     const session = await getSession();
-    const { workoutId, weight, caloriesBurned } = await req.json();
+    const { workoutId, weight, caloriesBurned, date } = await req.json();
 
-    if (!workoutId) {
+    if (weight == null && caloriesBurned == null) {
       return NextResponse.json(
-        { message: "Workout ID is required" },
+        { message: "Log a body weight or calories burned" },
         { status: 400 }
       );
     }
 
-    // 1️⃣ Create progress entry
+    // Create the entry. The workout is optional — weighing yourself
+    // isn't tied to a workout, and requiring one blocked the common case.
     const progress = await prisma.progress.create({
       data: {
         userId: session.user.id,
-        workoutId,
+        workoutId: workoutId ?? null,
+        date: date ? new Date(date) : new Date(),
         weight: weight ?? null,
         caloriesBurned: caloriesBurned ?? null,
       },
       include: { workout: true },
     });
 
-    // 2️⃣ Calculate streak
-    const today = new Date();
-    const startOfToday = new Date(today.setHours(0, 0, 0, 0));
-
-    const existingStreak = await prisma.streak.findUnique({
-      where: { userId: session.user.id },
-    });
-
-    let streakCount = 1;
-
-    if (!existingStreak) {
-      // First-time streak
-      await prisma.streak.create({
-        data: { userId: session.user.id, count: 1, lastDate: new Date() },
-      });
-    } else {
-      const lastWorkoutDate = existingStreak.lastDate
-        ? new Date(existingStreak.lastDate)
-        : null;
-
-      const diffDays = lastWorkoutDate
-        ? Math.floor(
-          (startOfToday.getTime() -
-            new Date(lastWorkoutDate.setHours(0, 0, 0, 0)).getTime()) /
-          (1000 * 60 * 60 * 24)
-        )
-        : Infinity;
-
-      if (diffDays === 1) {
-        streakCount = existingStreak.count + 1;
-      } else if (diffDays > 1) {
-        streakCount = 1; // reset streak
-      } else {
-        streakCount = existingStreak.count; // already today
-      }
-
-      await prisma.streak.upsert({
-        where: { userId: session.user.id },
-        update: { count: streakCount, lastDate: new Date() },
-        create: {
-          userId: session.user.id,
-          count: streakCount,
-          lastDate: new Date(),
-        },
-      });
-    }
-
     return NextResponse.json({
       id: progress.id,
-      workout: progress.workout?.name ?? "Unknown Workout",
+      workout: progress.workout?.name ?? null,
       weight: progress.weight ?? null,
       caloriesBurned: progress.caloriesBurned ?? null,
-      createdAt: progress.createdAt.toISOString(),
-      streak: streakCount,
+      date: progress.date.toISOString(),
     });
   } catch (error: unknown) {
     console.error(error);

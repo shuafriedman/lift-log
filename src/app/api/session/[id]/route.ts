@@ -68,7 +68,7 @@ export async function PATCH(
       });
     }
 
-    // Finish: stamp endedAt, log progress per exercise, bump streak.
+    // Finish: stamp endedAt and bump the streak.
     if (body.action === "finish") {
       if (owned.endedAt) {
         return NextResponse.json(
@@ -82,17 +82,12 @@ export async function PATCH(
         data: { endedAt: new Date() },
       });
 
-      // One Progress entry per logged exercise (individual progress).
-      const withWeight = owned.entries.filter((e) => e.weight != null);
+      // The session and its entries ARE the record of what was lifted — they
+      // carry the exercise, sets, reps and weight. Finishing used to also write
+      // one bare Progress row per exercise, which turned a single five-exercise
+      // session into five identical entries on the Progress tab with none of
+      // the detail. Progress is now only the user's hand-logged body metrics.
       if (owned.entries.length > 0) {
-        await prisma.progress.createMany({
-          data: (withWeight.length > 0 ? withWeight : owned.entries).map(
-            (e) => ({
-              userId: session.user.id,
-              weight: e.weight ?? null,
-            })
-          ),
-        });
         await bumpStreak(session.user.id);
       }
     }

@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import ExerciseDialog from "./exercise-dialog";
 import { handleError } from "@/components/error-handle";
 import { MdFitnessCenter, MdDelete } from "react-icons/md";
 import { BiDumbbell } from "react-icons/bi";
 import { AiOutlineCheckCircle } from "react-icons/ai";
-import { Camera, ImageOff } from "lucide-react";
+import { Camera, ImageOff, LineChart } from "lucide-react";
 import CountStepper from "@/components/count-stepper";
 import CameraCapture from "@/components/camera-capture";
 import {
@@ -388,6 +389,15 @@ export default function Exercise() {
                     <p className="mt-2 text-center text-xs text-neutral-500">
                       {volumeLabel(ex)}
                     </p>
+                    {/* The numbers above are today's prescription; this is the
+                        history of what you've actually put on the bar. */}
+                    <Link
+                      href={`/progress?exercise=${encodeURIComponent(ex.name)}`}
+                      className="tap-scale mt-2 flex h-11 items-center justify-center gap-2 rounded-xl border border-neutral-800 text-sm font-semibold text-neutral-300 active:border-teal-700 active:text-teal-300"
+                    >
+                      <LineChart className="h-4 w-4" />
+                      View progress
+                    </Link>
                   </div>
                 </div>
               );

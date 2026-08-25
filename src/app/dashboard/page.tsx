@@ -20,20 +20,18 @@ import {
 
 import LogoLoading from "../logo-loading/page";
 
-interface ProgressEntry {
-  id: number;
-  date: string;
-  caloriesBurned: number | null;
-  weight: number | null;
-  workout: string;
-}
+import {
+  dayKey,
+  startOfWeek,
+  round1,
+  type ProgressSummary,
+} from "@/lib/analytics";
 
 export default function Dashboard() {
   const setUser = useUserStore((state) => state.setUser);
 
   const [userName, setUserName] = useState<string | null>(null);
-  const [progress, setProgress] = useState<ProgressEntry[]>([]);
-  const [streak, setStreak] = useState<number>(0);
+  const [summary, setSummary] = useState<ProgressSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -54,20 +52,18 @@ export default function Dashboard() {
           localStorage.setItem("user", JSON.stringify(mappedUser));
         }
 
-        // Progress. A phone loses signal mid-set all the time, and an
-        // unauthenticated or failed response used to blow the page up with
-        // "Cannot read properties of undefined" — so read defensively.
-        const progressRes = await fetch("/api/progress");
-        if (progressRes.ok) {
-          const data = await progressRes.json();
-          setProgress(Array.isArray(data?.progress) ? data.progress : []);
-        }
-
-        // Streak
-        const streakRes = await fetch("/api/streak");
-        if (streakRes.ok) {
-          const streakData: { streak?: number } = await streakRes.json();
-          setStreak(streakData?.streak ?? 0);
+        // One roll-up for the whole dashboard: sessions, per-exercise history,
+        // body weight and streak. A phone loses signal mid-set all the time, so
+        // read defensively rather than blowing the page up.
+        const res = await fetch("/api/progress/summary");
+        if (res.ok) {
+          const data = await res.json();
+          setSummary({
+            streak: data?.streak ?? 0,
+            sessions: Array.isArray(data?.sessions) ? data.sessions : [],
+            exercises: Array.isArray(data?.exercises) ? data.exercises : [],
+            bodyWeight: Array.isArray(data?.bodyWeight) ? data.bodyWeight : [],
+          });
         }
       } catch (err) {
         console.error(err);
@@ -81,49 +77,40 @@ export default function Dashboard() {
 
   if (loading) return <LogoLoading />;
 
-  // Stats
-  const totalCalories = progress.reduce(
-    (sum, p) => sum + (p.caloriesBurned ?? 0),
-    0
-  );
-  const averageWeight =
-    progress.length > 0
-      ? progress.reduce((sum, p) => sum + (p.weight ?? 0), 0) / progress.length
-      : 0;
+  const sessions = summary?.sessions ?? [];
+  const bodyWeight = summary?.bodyWeight ?? [];
 
-  const activeDays = progress.filter((p) => p.caloriesBurned).length;
+  // Stats. Volume is the honest "how much work" number — sets × reps × kg,
+  // summed over every exercise in every session.
+  const totalVolume = round1(sessions.reduce((sum, s) => sum + s.volume, 0));
+  const latestWeight =
+    [...bodyWeight].reverse().find((b) => b.weight != null)?.weight ?? null;
+  const trainingDays = new Set(
+    sessions.map((s) => new Date(s.startedAt).toDateString())
+  ).size;
 
-  // This week only (Sun → today)
-  const now = new Date();
-
-  const weekStart = new Date(now);
-  weekStart.setHours(0, 0, 0, 0);
-  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-
-  const weekEnd = new Date(now);
-  weekEnd.setHours(23, 59, 59, 999);
-
-  const thisWeekProgress = progress.filter((p) => {
-    const d = new Date(p.date);
-    return d >= weekStart && d <= weekEnd;
-  });
-
-  // Build Sun → Sat graph with fresh data
+  // This week only (Sun → Sat), with each day's session volume and any body
+  // weight logged that day.
+  const weekStart = startOfWeek(new Date());
   const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const weeklyDailyData = weekdays.map((day) => ({
-    day,
-    calories: 0,
-    weight: null as number | null,
-  }));
+  const weeklyDailyData = weekdays.map((day, i) => {
+    const d = new Date(weekStart);
+    d.setDate(d.getDate() + i);
+    return { day, key: dayKey(d), volume: 0, weight: null as number | null };
+  });
+  const slotFor = (iso: string) =>
+    weeklyDailyData.find((slot) => slot.key === dayKey(new Date(iso)));
 
-  thisWeekProgress.forEach((p) => {
-    const d = new Date(p.date);
-    const idx = d.getDay();
-    weeklyDailyData[idx].calories += p.caloriesBurned ?? 0;
-    weeklyDailyData[idx].weight = p.weight ?? weeklyDailyData[idx].weight;
+  sessions.forEach((s) => {
+    const slot = slotFor(s.startedAt);
+    if (slot) slot.volume = round1(slot.volume + s.volume);
+  });
+  bodyWeight.forEach((b) => {
+    const slot = slotFor(b.date);
+    if (slot && b.weight != null) slot.weight = b.weight;
   });
 
-  const hasWeekData = weeklyDailyData.some((d) => d.calories > 0 || d.weight);
+  const hasWeekData = weeklyDailyData.some((d) => d.volume > 0 || d.weight);
 
   return (
     <motion.div
@@ -151,24 +138,28 @@ export default function Dashboard() {
         {/* Stats — two up on a phone, four across from `sm`. */}
         <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4 md:gap-4">
           <StatCard
-            icon={<Flame className="h-4 w-4" />}
-            title="Calories"
-            value={totalCalories.toLocaleString()}
+            icon={<TrendingUp className="h-4 w-4" />}
+            title="Volume"
+            value={
+              totalVolume >= 10000
+                ? `${round1(totalVolume / 1000)}t`
+                : `${Math.round(totalVolume).toLocaleString()} kg`
+            }
           />
           <StatCard
             icon={<Scale className="h-4 w-4" />}
-            title="Avg weight"
-            value={averageWeight ? `${averageWeight.toFixed(1)} kg` : "—"}
+            title="Body weight"
+            value={latestWeight != null ? `${latestWeight} kg` : "—"}
           />
           <StatCard
             icon={<CalendarCheck className="h-4 w-4" />}
-            title="Active days"
-            value={activeDays}
+            title="Training days"
+            value={trainingDays}
           />
           <StatCard
-            icon={<TrendingUp className="h-4 w-4" />}
+            icon={<Flame className="h-4 w-4" />}
             title="Streak"
-            value={`${streak}d`}
+            value={`${summary?.streak ?? 0}d`}
           />
         </div>
 
@@ -181,7 +172,7 @@ export default function Dashboard() {
           <div className="mb-4 flex items-baseline justify-between">
             <h2 className="text-lg font-semibold md:text-xl">This week</h2>
             <span className="text-xs text-neutral-500">
-              calories · weight (kg)
+              volume · body weight (kg)
             </span>
           </div>
 
@@ -208,7 +199,7 @@ export default function Dashboard() {
                     tickFormatter={(d: string) => d.slice(0, 1)}
                   />
                   <YAxis
-                    yAxisId="cal"
+                    yAxisId="vol"
                     stroke="#737373"
                     tickLine={false}
                     axisLine={false}
@@ -237,9 +228,9 @@ export default function Dashboard() {
                   />
 
                   <Bar
-                    yAxisId="cal"
-                    dataKey="calories"
-                    name="Calories"
+                    yAxisId="vol"
+                    dataKey="volume"
+                    name="Volume (kg)"
                     animationDuration={700}
                     radius={[6, 6, 0, 0]}
                     maxBarSize={34}
@@ -271,13 +262,13 @@ export default function Dashboard() {
           ) : (
             <div className="py-10 text-center">
               <p className="text-sm text-neutral-400">
-                No entries this week yet.
+                No sessions this week yet.
               </p>
               <Link
                 href="/progress"
                 className="mt-3 inline-flex h-11 items-center rounded-xl border border-neutral-700 px-4 text-sm font-semibold"
               >
-                Log today
+                See your progress
               </Link>
             </div>
           )}

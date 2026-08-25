@@ -182,13 +182,19 @@ model SessionExercise {
     catalog    ExerciseCatalog? @relation(fields: [catalogId], references: [id])
 }
 
+// A body metric the user logged by hand: body weight, calories burned, on a day.
+// Training itself is recorded by WorkoutSession/SessionExercise — this table is
+// deliberately NOT a copy of what was lifted.
 model Progress {
     id             Int      @id @default(autoincrement())
     userId         String
     workoutId      Int? // Optional — can log progress without a specific workout
     date           DateTime @default(now()) // general progress date
     caloriesBurned Float?
-    weight         Float? // weight lifted or body weight
+    weight         Float? // body weight, in kg
+    // "manual" = the user logged it. "session" = a legacy row auto-created per
+    // exercise when a session was finished; kept for history, hidden from the UI.
+    source         String   @default("manual")
     createdAt      DateTime @default(now())
     updatedAt      DateTime @updatedAt
 

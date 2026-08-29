@@ -106,12 +106,18 @@ function ProgressView() {
     [data, weeks]
   );
 
-  const bodyWeight = useMemo(
-    () =>
-      withinRange(data?.bodyWeight ?? [], weeks, (b) => b.date).filter(
-        (b) => b.weight != null
-      ),
+  // Everything hand-logged in range. The dialog accepts a calories-only entry,
+  // so the list has to show rows without a weight — filtering them out saved
+  // them to the database and then hid them, with no way to delete them again.
+  const bodyEntries = useMemo(
+    () => withinRange(data?.bodyWeight ?? [], weeks, (b) => b.date),
     [data, weeks]
+  );
+
+  // Only the weighed ones can be plotted.
+  const bodyWeight = useMemo(
+    () => bodyEntries.filter((b) => b.weight != null),
+    [bodyEntries]
   );
 
   const weekly = useMemo(() => weeklyVolume(sessions, weeks), [sessions, weeks]);
@@ -196,7 +202,7 @@ function ProgressView() {
           </div>
         )}
 
-        {!hasTraining && bodyWeight.length === 0 && !error ? (
+        {!hasTraining && bodyEntries.length === 0 && !error ? (
           <EmptyState />
         ) : (
           <>
@@ -336,8 +342,11 @@ function ProgressView() {
               className="mb-5"
               action={<ProgressDialog onsuccess={fetchSummary} />}
             >
-              {bodyWeight.length > 0 ? (
+              {bodyEntries.length === 0 ? (
+                <Placeholder text="Nothing logged in this range yet." />
+              ) : (
                 <>
+                  {bodyWeight.length > 0 ? (
                   <div className="h-48 w-full md:h-60">
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart
@@ -382,9 +391,12 @@ function ProgressView() {
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
+                  ) : (
+                    <Placeholder text="No weigh-ins in this range — only calories." />
+                  )}
 
                   <ul className="mt-4 divide-y divide-neutral-800/70">
-                    {[...bodyWeight].reverse().map((entry) => (
+                    {[...bodyEntries].reverse().map((entry) => (
                       <li
                         key={entry.id}
                         className="flex items-center gap-3 py-2.5"
@@ -417,8 +429,6 @@ function ProgressView() {
                     ))}
                   </ul>
                 </>
-              ) : (
-                <Placeholder text="No body weight logged in this range yet." />
               )}
             </Section>
 

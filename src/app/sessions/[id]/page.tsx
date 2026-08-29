@@ -17,7 +17,7 @@ interface SessionEntry {
   sets: number | null;
   reps: number | null;
   weight: number | null;
-  /** Set when this entry came from My Exercises — edits flow back to it. */
+  /** Set when this entry came from My Exercises — offered as a default at finish. */
   exerciseId?: number | null;
   catalog?: { images: string[] } | null;
 }
@@ -28,6 +28,37 @@ interface WorkoutSession {
   startedAt: string;
   endedAt: string | null;
   entries: SessionEntry[];
+}
+
+interface ExerciseValues {
+  sets: number | null;
+  reps: number | null;
+  weight: number | null;
+}
+
+// An exercise whose logged values drifted from the saved default this session.
+interface PendingChange {
+  exerciseId: number;
+  name: string;
+  logged: ExerciseValues;
+  current: ExerciseValues;
+}
+
+// "3 × 10 · 40 kg" style summary for a set of values.
+function summarize(v: ExerciseValues): string {
+  const shape =
+    v.sets != null && v.reps != null
+      ? `${v.sets} × ${v.reps}`
+      : v.sets != null
+      ? `${v.sets} sets`
+      : v.reps != null
+      ? `${v.reps} reps`
+      : null;
+  return (
+    [shape, v.weight != null ? `${v.weight} kg` : null]
+      .filter(Boolean)
+      .join(" · ") || "—"
+  );
 }
 
 function useElapsed(startISO: string | undefined, endISO: string | null) {
@@ -64,6 +95,12 @@ export default function SessionDetailPage({
     "loading"
   );
   const [finishing, setFinishing] = useState(false);
+  const [checkingChanges, setCheckingChanges] = useState(false);
+  const [pendingChanges, setPendingChanges] = useState<PendingChange[] | null>(
+    null
+  );
+  // exerciseId -> true means "save this as my new default" (off = local only).
+  const [saveDefaults, setSaveDefaults] = useState<Record<number, boolean>>({});
   const [nameDraft, setNameDraft] = useState("");
   const [pendingRemove, setPendingRemove] = useState<SessionEntry | null>(null);
   const [pendingDeleteSession, setPendingDeleteSession] = useState(false);
@@ -213,21 +250,56 @@ export default function SessionDetailPage({
     }
   }, [editing, editSets, editReps, editWeight, id, fetchSession]);
 
+  // Commit the finish, optionally promoting some exercises to new defaults.
+  const doFinish = useCallback(
+    async (updateDefaults: number[]) => {
+      setFinishing(true);
+      try {
+        const res = await fetch(`/api/session/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "finish", updateDefaults }),
+        });
+        if (!res.ok) throw new Error("Failed to finish session");
+        router.push("/sessions");
+      } catch (error) {
+        handleError(error);
+        setFinishing(false);
+      }
+    },
+    [id, router]
+  );
+
+  // Tapping Finish first checks whether anything drifted from the user's
+  // defaults. If so, we ask per exercise before committing; if not, we finish
+  // straight away.
   const finishSession = useCallback(async () => {
-    setFinishing(true);
+    setCheckingChanges(true);
     try {
-      const res = await fetch(`/api/session/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "finish" }),
-      });
-      if (!res.ok) throw new Error("Failed to finish session");
-      router.push("/sessions");
+      const res = await fetch(`/api/session/${id}/changes`);
+      if (!res.ok) throw new Error("Failed to check for changes");
+      const data = await res.json();
+      const changes: PendingChange[] = data.changes ?? [];
+      if (changes.length === 0) {
+        await doFinish([]);
+        return;
+      }
+      setSaveDefaults({});
+      setPendingChanges(changes);
     } catch (error) {
       handleError(error);
-      setFinishing(false);
+    } finally {
+      setCheckingChanges(false);
     }
-  }, [id, router]);
+  }, [id, doFinish]);
+
+  const confirmFinishWithChanges = useCallback(async () => {
+    const updateDefaults = (pendingChanges ?? [])
+      .filter((c) => saveDefaults[c.exerciseId])
+      .map((c) => c.exerciseId);
+    setPendingChanges(null);
+    await doFinish(updateDefaults);
+  }, [pendingChanges, saveDefaults, doFinish]);
 
   if (status === "loading") return <LogoLoading />;
 
@@ -391,11 +463,15 @@ export default function SessionDetailPage({
           <AddExerciseDialog sessionId={session.id} onAdded={fetchSession} />
           <button
             onClick={finishSession}
-            disabled={finishing}
+            disabled={finishing || checkingChanges}
             className="tap-scale flex h-14 shrink-0 items-center justify-center gap-2 rounded-2xl border border-neutral-700 px-5 font-semibold disabled:opacity-60 md:h-12"
           >
             <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-            {finishing ? "Finishing…" : "Finish"}
+            {finishing
+              ? "Finishing…"
+              : checkingChanges
+              ? "Checking…"
+              : "Finish"}
           </button>
         </div>
       )}
@@ -427,7 +503,7 @@ export default function SessionDetailPage({
             <h2 className="mb-1 text-lg font-bold">{editing.name}</h2>
             <p className="mb-4 text-xs text-neutral-400">
               {editing.exerciseId != null
-                ? "Saved to this session and to My Exercises — the new numbers carry to every workout using it."
+                ? "Saved to this session only. At finish you can choose to make these your new default."
                 : "Saved to this session."}
             </p>
             <div className="space-y-3">
@@ -467,6 +543,97 @@ export default function SessionDetailPage({
                 onClick={() => setEditing(null)}
                 disabled={savingEdit}
                 className="tap-scale h-12 rounded-xl border border-neutral-700 font-semibold"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pendingChanges && (
+        <div
+          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center"
+          onClick={() => !finishing && setPendingChanges(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Save changes to defaults"
+        >
+          <div
+            className="flex max-h-[85dvh] w-full flex-col rounded-t-2xl border-t border-neutral-800 bg-neutral-900 p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:max-w-md sm:rounded-2xl sm:border sm:pb-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="mb-1 text-lg font-bold">Update your defaults?</h2>
+            <p className="mb-4 text-sm text-neutral-400">
+              You logged these differently than usual. Turn on the ones that
+              should carry over to next time — leave the rest as a one-off for
+              this session.
+            </p>
+
+            <div className="scroll-area -mx-1 mb-5 space-y-2 overflow-y-auto px-1">
+              {pendingChanges.map((c) => {
+                const on = !!saveDefaults[c.exerciseId];
+                return (
+                  <button
+                    key={c.exerciseId}
+                    type="button"
+                    onClick={() =>
+                      setSaveDefaults((prev) => ({
+                        ...prev,
+                        [c.exerciseId]: !prev[c.exerciseId],
+                      }))
+                    }
+                    aria-pressed={on}
+                    className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-colors ${
+                      on
+                        ? "border-emerald-700 bg-emerald-950/30"
+                        : "border-neutral-800 bg-neutral-950"
+                    }`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <h4 className="truncate font-semibold">{c.name}</h4>
+                      <p className="mt-0.5 text-sm text-neutral-400">
+                        <span className="text-neutral-300">
+                          {summarize(c.logged)}
+                        </span>
+                        <span className="text-neutral-600">
+                          {"  ·  was "}
+                          {summarize(c.current)}
+                        </span>
+                      </p>
+                    </div>
+                    <span
+                      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
+                        on ? "bg-emerald-600" : "bg-neutral-700"
+                      }`}
+                    >
+                      <span
+                        className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${
+                          on ? "left-[1.375rem]" : "left-0.5"
+                        }`}
+                      />
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={confirmFinishWithChanges}
+                disabled={finishing}
+                className="tap-scale h-12 rounded-xl bg-emerald-600 font-semibold text-white disabled:opacity-60"
+              >
+                {finishing
+                  ? "Finishing…"
+                  : Object.values(saveDefaults).some(Boolean)
+                  ? "Save & finish"
+                  : "Finish, keep all local"}
+              </button>
+              <button
+                onClick={() => setPendingChanges(null)}
+                disabled={finishing}
+                className="tap-scale h-12 rounded-xl border border-neutral-700 font-semibold disabled:opacity-60"
               >
                 Cancel
               </button>

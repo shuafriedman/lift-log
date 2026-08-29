@@ -77,6 +77,40 @@ export async function PATCH(
         );
       }
 
+      // Exercises the user chose to promote to their global default on the
+      // finish screen. Values come from this session's own entries (last one
+      // wins) rather than client-sent numbers, so the default always mirrors
+      // what was actually logged.
+      const updateDefaults: number[] = Array.isArray(body.updateDefaults)
+        ? body.updateDefaults
+            .map((n: unknown) => Number(n))
+            .filter((n: number) => Number.isInteger(n) && n > 0)
+        : [];
+
+      if (updateDefaults.length > 0) {
+        const latestByExercise = new Map<
+          number,
+          (typeof owned.entries)[number]
+        >();
+        for (const entry of owned.entries) {
+          if (entry.exerciseId == null) continue;
+          latestByExercise.set(entry.exerciseId, entry);
+        }
+        for (const exerciseId of updateDefaults) {
+          const entry = latestByExercise.get(exerciseId);
+          if (!entry) continue;
+          await prisma.exercise.updateMany({
+            // Scope to the owner so a spoofed id can't touch another user's row.
+            where: { id: exerciseId, userId: session.user.id },
+            data: {
+              ...(entry.sets != null ? { sets: entry.sets } : {}),
+              ...(entry.reps != null ? { reps: entry.reps } : {}),
+              weight: entry.weight,
+            },
+          });
+        }
+      }
+
       await prisma.workoutSession.update({
         where: { id: sessionId },
         data: { endedAt: new Date() },

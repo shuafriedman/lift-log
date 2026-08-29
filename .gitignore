@@ -41,3 +41,7 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# database dumps - these carry real user and auth rows
+*.dump
+*.sql.gz

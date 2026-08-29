@@ -50,9 +50,9 @@ export default function EditProfileDialog() {
             }
             setOpen(false);
 
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error(err);
-            setError(err.message || "An error occurred");
+            setError(err instanceof Error ? err.message : "An error occurred");
         } finally {
             setLoading(false);
         }

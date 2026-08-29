@@ -70,7 +70,6 @@ export default function ExercisePicker({
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
   return (

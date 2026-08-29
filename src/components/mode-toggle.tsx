@@ -3,14 +3,13 @@
 import { useTheme } from "next-themes"
 import { Sun, Moon } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useEffect, useState } from "react"
+import { useHydrated } from "@/hooks/use-hydrated"
 
 export function ModeToggle() {
   const { theme, setTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
 
-  // Prevent hydration mismatch
-  useEffect(() => setMounted(true), [])
+  // Prevent hydration mismatch: the server has no idea which theme is stored.
+  const mounted = useHydrated()
   if (!mounted) return null
 
   const toggleTheme = () => {

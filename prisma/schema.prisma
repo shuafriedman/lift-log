@@ -192,9 +192,6 @@ model Progress {
     date           DateTime @default(now()) // general progress date
     caloriesBurned Float?
     weight         Float? // body weight, in kg
-    // "manual" = the user logged it. "session" = a legacy row auto-created per
-    // exercise when a session was finished; kept for history, hidden from the UI.
-    source         String   @default("manual")
     createdAt      DateTime @default(now())
     updatedAt      DateTime @updatedAt
 

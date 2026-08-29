@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Minus, Plus } from "lucide-react";
 
 /**
@@ -36,12 +36,18 @@ export default function CountStepper({
   // While the field has focus the raw keystrokes win, so half-typed values
   // ("6", "62.") survive; blur hands control back to the canonical number.
   const [draft, setDraft] = useState<string | null>(null);
+  const [focused, setFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // A value changed from the outside (a refetch, a +/- tap) ends any edit.
-  useEffect(() => {
-    if (document.activeElement !== inputRef.current) setDraft(null);
-  }, [value]);
+  // A value changed from the outside (a refetch, a sibling edit) ends any stale
+  // edit, but never one in progress. Adjusting during render rather than from an
+  // effect keeps it to a single render pass, and reads component state instead
+  // of poking at document.activeElement.
+  const [lastValue, setLastValue] = useState(value);
+  if (value !== lastValue) {
+    setLastValue(value);
+    if (!focused) setDraft(null);
+  }
 
   const clamp = (n: number) => {
     let next = max != null ? Math.min(n, max) : n;
@@ -87,8 +93,14 @@ export default function CountStepper({
             ref={inputRef}
             value={draft ?? String(value)}
             onChange={(e) => handleInput(e.target.value)}
-            onFocus={(e) => e.target.select()}
-            onBlur={() => setDraft(null)}
+            onFocus={(e) => {
+              setFocused(true);
+              e.target.select();
+            }}
+            onBlur={() => {
+              setFocused(false);
+              setDraft(null);
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter") e.currentTarget.blur();
             }}

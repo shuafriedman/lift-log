@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useUserStore } from "@/store/userStore";
+import { useHydrated } from "./use-hydrated";
 
 /**
  * The persisted user, but `null` until after hydration.
@@ -13,9 +13,7 @@ import { useUserStore } from "@/store/userStore";
  */
 export function useHydratedUser() {
   const user = useUserStore((state) => state.user);
-  const [hydrated, setHydrated] = useState(false);
-
-  useEffect(() => setHydrated(true), []);
+  const hydrated = useHydrated();
 
   return hydrated ? user : null;
 }

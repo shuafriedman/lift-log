@@ -37,9 +37,7 @@ export async function GET() {
         include: { entries: { orderBy: { order: "asc" } } },
       }),
       prisma.progress.findMany({
-        // Legacy rows written per-exercise on session finish are marked
-        // "session" and stay out of the body-metrics chart.
-        where: { userId, source: "manual" },
+        where: { userId },
         orderBy: { date: "asc" },
         include: { workout: { select: { name: true } } },
       }),

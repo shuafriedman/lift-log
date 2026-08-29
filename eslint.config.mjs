@@ -1,16 +1,15 @@
-import { dirname } from "path";
-import { fileURLToPath } from "url";
-import { FlatCompat } from "@eslint/eslintrc";
+import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
+import nextTypeScript from "eslint-config-next/typescript";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
-
+/**
+ * eslint-config-next 16 ships native flat configs, so they are spread straight
+ * in. Routing them through `FlatCompat` (the eslintrc bridge) made ESLint 9
+ * try to JSON.stringify a plugin object that references itself, and every run
+ * died with "Converting circular structure to JSON" before linting a file.
+ *
+ * Ignores live here too: flat config does not read `.eslintignore`.
+ */
 const eslintConfig = [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
     ignores: [
       "node_modules/**",
@@ -18,10 +17,14 @@ const eslintConfig = [
       "out/**",
       "build/**",
       "next-env.d.ts",
-      "prisma/generated/**",   // <- Add this
-      "src/generated/**",      // <- Add this
+      // Prisma's generated client — thousands of files, none of them ours.
+      "prisma/generated/**",
+      "src/generated/**",
+      "src/prisma/**",
     ],
   },
+  ...nextCoreWebVitals,
+  ...nextTypeScript,
 ];
 
 export default eslintConfig;

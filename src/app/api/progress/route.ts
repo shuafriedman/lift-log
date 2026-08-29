@@ -20,9 +20,7 @@ export async function GET() {
     const session = await getSession();
 
     const progressData = await prisma.progress.findMany({
-      // Rows auto-created per exercise on session finish are marked "session"
-      // and excluded: they were a bug, not something the user logged.
-      where: { userId: session.user.id, source: "manual" },
+      where: { userId: session.user.id },
       orderBy: { date: "desc" },
       include: { workout: true },
     });

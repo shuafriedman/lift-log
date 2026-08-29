@@ -116,11 +116,13 @@ export default function CameraCapture({
 
     start();
 
+    // Read the node now: by cleanup time the ref may already point elsewhere.
+    const video = videoRef.current;
+
     // Always hand the camera back — a live track keeps the phone's LED on.
     return () => {
       cancelled = true;
       stream?.getTracks().forEach((t) => t.stop());
-      const video = videoRef.current;
       if (video) video.srcObject = null;
     };
   }, [open, facing]);

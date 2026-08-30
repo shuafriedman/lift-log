@@ -92,8 +92,11 @@ export default function ExercisePicker({
 
       {/* The list is its own scroll area, so anything below it in a dialog is
           unreachable on a phone if the list eats the whole screen — cap it at
-          a share of the viewport, not a fixed 26rem. */}
-      <div className="max-h-[min(26rem,38dvh)] overflow-y-auto space-y-2 pr-1">
+          a share of the viewport, not a fixed 26rem. Use a fixed height (not
+          just a cap) so the modal doesn't collapse when a search returns no
+          results — a shrinking sheet re-anchors and drops the search field
+          behind the on-screen keyboard. */}
+      <div className="h-[min(26rem,38dvh)] overflow-y-auto space-y-2 pr-1">
         {items.map((item) => {
           const isSelected = item.id === selectedId;
           return (

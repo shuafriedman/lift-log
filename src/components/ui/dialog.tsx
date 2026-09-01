@@ -60,16 +60,17 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          // Mobile: a bottom sheet. It is anchored to the bottom of the screen
-          // (within thumb reach), never taller than the *visual* viewport so
-          // the on-screen keyboard can't push the submit button out of sight,
-          // and it scrolls internally with its own overscroll containment.
-          "bg-background fixed inset-x-0 bottom-0 z-50 flex max-h-[92dvh] w-full flex-col gap-4 overflow-y-auto overscroll-contain rounded-t-2xl border-t p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] shadow-lg duration-200",
+          // Mobile: a top-anchored sheet. It is pinned to the TOP of the screen
+          // so a focused input stays above the on-screen keyboard (which fills
+          // the bottom) instead of being hidden behind it, never taller than the
+          // viewport, and it scrolls internally with its own overscroll
+          // containment. Top padding clears the notch under viewport-fit: cover.
+          "bg-background fixed inset-x-0 top-0 z-50 flex max-h-[92dvh] w-full flex-col gap-4 overflow-y-auto overscroll-contain rounded-b-2xl border-b p-5 pt-[calc(1.25rem+env(safe-area-inset-top,0px))] shadow-lg duration-200",
           "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-          "data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
+          "data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top",
           // From `sm` up it goes back to being a centred modal dialog.
-          "sm:inset-x-auto sm:bottom-auto sm:top-[50%] sm:left-[50%] sm:max-h-[85dvh] sm:max-w-lg sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-lg sm:border sm:p-6 sm:pb-6",
-          "sm:data-[state=closed]:slide-out-to-bottom-0 sm:data-[state=open]:slide-in-from-bottom-0 sm:data-[state=closed]:zoom-out-95 sm:data-[state=open]:zoom-in-95",
+          "sm:inset-x-auto sm:top-[50%] sm:left-[50%] sm:max-h-[85dvh] sm:max-w-lg sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-lg sm:border sm:p-6",
+          "sm:data-[state=closed]:slide-out-to-top-0 sm:data-[state=open]:slide-in-from-top-0 sm:data-[state=closed]:zoom-out-95 sm:data-[state=open]:zoom-in-95",
           className
         )}
         {...props}

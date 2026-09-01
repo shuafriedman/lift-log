@@ -11,6 +11,10 @@ export const viewport: Viewport = {
     initialScale: 1,
     viewportFit: 'cover',
     themeColor: '#0a0a0a',
+    // Let the on-screen keyboard shrink the page instead of overlaying it, so a
+    // bottom-of-screen element isn't hidden behind it (Android/Chrome; iOS
+    // Safari ignores this, which is why dialogs are also top-anchored on mobile).
+    interactiveWidget: 'resizes-content',
 }
 
 export const metadata: Metadata = {

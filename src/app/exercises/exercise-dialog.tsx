@@ -203,7 +203,7 @@ export default function ExerciseDialog({ onsuccess }: ExerciseDialogProps) {
       </DialogTrigger>
 
       <DialogContent className="gap-0 border-neutral-800 bg-neutral-950 p-0 shadow-2xl sm:max-w-xl">
-        <div className="px-6 pt-5 pb-3 relative overflow-hidden">
+        <div className="px-6 pt-[calc(1.25rem+env(safe-area-inset-top,0px))] pb-3 relative overflow-hidden sm:pt-5">
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-32 translate-x-32 blur-3xl" />
           <DialogHeader className="relative z-10">
             <div className="flex items-center gap-3">

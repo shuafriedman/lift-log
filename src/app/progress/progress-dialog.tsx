@@ -130,7 +130,7 @@ export default function ProgressDialog({ onsuccess }: ProgressDialogProps) {
       </DialogTrigger>
 
       <DialogContent className="gap-0 border-neutral-800 bg-neutral-950 p-0 shadow-2xl sm:max-w-lg">
-        <div className="relative overflow-hidden p-5 sm:p-6">
+        <div className="relative overflow-hidden p-5 pt-[calc(1.25rem+env(safe-area-inset-top,0px))] sm:p-6 sm:pt-6">
           <div className="absolute top-0 right-0 h-64 w-64 translate-x-32 -translate-y-32 rounded-full bg-white/5 blur-3xl" />
           <DialogHeader className="relative z-10">
             <div className="flex items-center gap-4">

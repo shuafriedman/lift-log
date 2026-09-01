@@ -196,7 +196,7 @@ export default function AddExerciseDialog({
       </DialogTrigger>
 
       <DialogContent className="gap-0 border-neutral-800 bg-neutral-950 p-0 shadow-2xl sm:max-w-md">
-        <div className="bg-black p-5 sm:p-6">
+        <div className="bg-black p-5 pt-[calc(1.25rem+env(safe-area-inset-top,0px))] sm:p-6 sm:pt-6">
           <DialogHeader>
             <div className="flex items-center gap-3">
               <div className="bg-neutral-800 p-3 rounded-2xl border border-neutral-900">

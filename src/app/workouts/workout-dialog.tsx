@@ -119,7 +119,7 @@ export default function WorkoutDialog({ onWorkoutCreated }: WorkoutDialogProps) 
       </DialogTrigger>
 
       <DialogContent className="gap-0 border-neutral-800 bg-neutral-950 p-0 shadow-2xl sm:max-w-xl">
-        <div className="relative overflow-hidden bg-black p-5 text-white sm:p-8">
+        <div className="relative overflow-hidden bg-black p-5 pt-[calc(1.25rem+env(safe-area-inset-top,0px))] text-white sm:p-8 sm:pt-8">
           <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-32 translate-x-32 blur-3xl" />
           <div className="absolute bottom-0 left-0 w-48 h-48 bg-neutral-900/40 rounded-full translate-y-24 -translate-x-24 blur-2xl" />
           <DialogHeader className="relative z-10">

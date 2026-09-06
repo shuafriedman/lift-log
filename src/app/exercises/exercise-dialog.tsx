@@ -195,7 +195,7 @@ export default function ExerciseDialog({ onsuccess }: ExerciseDialogProps) {
       }}
     >
       <DialogTrigger asChild>
-        <Button className="tap-scale group relative flex h-14 w-full items-center justify-center gap-2 overflow-hidden rounded-2xl font-semibold shadow-lg transition-all duration-300 md:h-12 md:w-auto md:px-6">
+        <Button className="tap-scale group relative flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-2xl font-semibold shadow-lg transition-all duration-300 md:w-auto md:px-6">
           <div className="absolute inset-0 bg-neutral-900 opacity-0 transition-opacity duration-300" />
           <IoMdAdd className="text-xl relative z-10" />
           <span className="relative z-10">Add Exercise</span>

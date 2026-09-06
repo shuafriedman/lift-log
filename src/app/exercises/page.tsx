@@ -1,54 +1,31 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
+import { useState, useEffect, useMemo, useRef } from "react";
 import ExerciseDialog from "./exercise-dialog";
+import ExerciseItem from "./exercise-item";
+import ExercisesToolbar from "./exercises-toolbar";
+import {
+  isSortKey,
+  muscleFacets,
+  visibleExercises,
+  type Exercise,
+  type SortKey,
+} from "./exercise-filters";
 import { handleError } from "@/components/error-handle";
-import { MdFitnessCenter, MdDelete } from "react-icons/md";
+import { MdFitnessCenter } from "react-icons/md";
 import { BiDumbbell } from "react-icons/bi";
 import { AiOutlineCheckCircle } from "react-icons/ai";
-import { Camera, ImageOff, LineChart } from "lucide-react";
-import CountStepper from "@/components/count-stepper";
 import CameraCapture from "@/components/camera-capture";
-import {
-  exercisePhotoUrl,
-  uploadExercisePhoto,
-  type ProcessedPhoto,
-} from "@/lib/image";
+import { uploadExercisePhoto, type ProcessedPhoto } from "@/lib/image";
 import LogoLoading from "../logo-loading/page";
 import ConfirmSheet from "@/components/confirm-sheet";
 import LiftLogMark from "@/components/lift-log-mark";
 
-export interface Exercise {
-  id: number;
-  name: string;
-  sets: number;
-  reps: number;
-  /** Working weight in kg. Null for bodyweight exercises. */
-  weight?: number | null;
-  category: string;
-  createdAt: string;
-  updatedAt: string;
-  /** Set when the user has taken their own photo for this exercise. */
-  photoUpdatedAt?: string | null;
-  catalog?: {
-    id: string;
-    images: string[];
-    category: string | null;
-    equipment: string | null;
-    primaryMuscles: string[];
-    level: string | null;
-  } | null;
-}
+export type { Exercise };
 
-// Reps volume is sets × reps; once a weight is set, the number that matters is
-// the tonnage moved (sets × reps × kg).
-function volumeLabel(ex: Exercise) {
-  const reps = (ex.sets || 0) * (ex.reps || 0);
-  if (!ex.weight) return `Volume ${reps} reps`;
-  const kg = Math.round(reps * ex.weight * 10) / 10;
-  return `Volume ${reps} reps · ${kg.toLocaleString()} kg`;
-}
+/** View and sort are per-device preferences, not worth a round trip. */
+const VIEW_KEY = "liftlog:exercises:view";
+const SORT_KEY = "liftlog:exercises:sort";
 
 export default function Exercise() {
   const [exercises, setExercises] = useState<Exercise[]>([]);
@@ -64,6 +41,36 @@ export default function Exercise() {
   // Which exercise the camera sheet is currently shooting for.
   const [photoTarget, setPhotoTarget] = useState<Exercise | null>(null);
   const [savingPhoto, setSavingPhoto] = useState(false);
+
+  // Browsing controls.
+  const [query, setQuery] = useState("");
+  const [muscles, setMuscles] = useState<string[]>([]);
+  const [sort, setSort] = useState<SortKey>("recent");
+  const [view, setView] = useState<"list" | "grid">("list");
+  // Only one exercise is edited at a time, so only one card carries the weight
+  // of the steppers and actions.
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+
+  // Stored preferences are read after mount so the server-rendered markup and
+  // the first client render still agree.
+  useEffect(() => {
+    try {
+      const storedView = localStorage.getItem(VIEW_KEY);
+      if (storedView === "list" || storedView === "grid") setView(storedView);
+      const storedSort = localStorage.getItem(SORT_KEY);
+      if (isSortKey(storedSort)) setSort(storedSort);
+    } catch {
+      /* private mode / storage disabled — the defaults are fine */
+    }
+  }, []);
+
+  const remember = (key: string, value: string) => {
+    try {
+      localStorage.setItem(key, value);
+    } catch {
+      /* nothing to do: the preference just won't survive a reload */
+    }
+  };
 
   const fetchExercises = async () => {
     try {
@@ -202,40 +209,92 @@ export default function Exercise() {
     };
   }, []);
 
+  const facets = useMemo(() => muscleFacets(exercises), [exercises]);
+
+  // Sorting an editable list on every keystroke of a stepper would reshuffle
+  // the row under the user's thumb, so the order is recomputed from the
+  // controls and the fetched list only.
+  const shown = useMemo(
+    () => visibleExercises(exercises, { query, muscles, sort }),
+    [exercises, query, muscles, sort]
+  );
+
+  // A chip that no longer matches anything (its last exercise was deleted or
+  // renamed) would otherwise strand the list on an empty result.
+  useEffect(() => {
+    const available = new Set(facets.map((f) => f.value));
+    setMuscles((prev) => {
+      const next = prev.filter((m) => available.has(m));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [facets]);
+
+  const filtersActive = query.trim() !== "" || muscles.length > 0;
+
+  const clearFilters = () => {
+    setQuery("");
+    setMuscles([]);
+  };
+
+  const toggleMuscle = (value: string) =>
+    setMuscles((prev) =>
+      prev.includes(value) ? prev.filter((m) => m !== value) : [...prev, value]
+    );
+
   if (loading) {
-    return <LogoLoading />
+    return <LogoLoading />;
   }
 
   return (
     <div className="px-4 py-5 md:p-8">
       <div className="mx-auto max-w-7xl">
-        {/* Header. The 70px logo and 3xl title ate a third of a phone screen
-            before you saw a single exercise — both scale down on mobile. */}
-        <div className="mb-5 flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <LiftLogMark className="h-10 w-10 shrink-0 md:h-14 md:w-14" />
+        {/* The mobile app bar already says "Exercises", so the page only
+            repeats the title from md up, where there is room for it. */}
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="hidden min-w-0 items-center gap-3 md:flex">
+            <LiftLogMark className="h-12 w-12 shrink-0" />
             <div className="min-w-0">
-              <h1 className="truncate text-2xl font-bold md:text-3xl">
-                My Exercises
-              </h1>
+              <h1 className="truncate text-3xl font-bold">My Exercises</h1>
               <p className="text-sm text-neutral-400">
-                {exercises.length}{" "}
-                {exercises.length === 1 ? "exercise" : "exercises"} tracked
+                Your library of lifts and their working numbers
               </p>
             </div>
           </div>
-        </div>
-
-        <div className="mb-6">
-          <ExerciseDialog onsuccess={fetchExercises} />
+          <div className="w-full md:w-auto">
+            <ExerciseDialog onsuccess={fetchExercises} />
+          </div>
         </div>
 
         {/* Error Message */}
         {error && (
-          <div className="mb-5 flex items-center gap-3 rounded-xl border-2 border-red-800 p-4 dark:bg-neutral-950">
+          <div className="mb-3 flex items-center gap-3 rounded-xl border-2 border-red-800 p-4 dark:bg-neutral-950">
             <MdFitnessCenter className="shrink-0 text-xl text-red-500" />
             <p className="font-medium text-red-500">{error}</p>
           </div>
+        )}
+
+        {exercises.length > 0 && (
+          <ExercisesToolbar
+            query={query}
+            onQueryChange={setQuery}
+            sort={sort}
+            onSortChange={(value) => {
+              setSort(value);
+              remember(SORT_KEY, value);
+            }}
+            view={view}
+            onViewChange={(value) => {
+              setView(value);
+              remember(VIEW_KEY, value);
+            }}
+            facets={facets}
+            selectedMuscles={muscles}
+            onToggleMuscle={toggleMuscle}
+            filtersActive={filtersActive}
+            onClearFilters={clearFilters}
+            shown={shown.length}
+            total={exercises.length}
+          />
         )}
 
         {/* Empty State */}
@@ -256,152 +315,47 @@ export default function Exercise() {
           </div>
         )}
 
-        {/* Exercise list — one card per row on a phone. Two cramped columns
-            made the photo, the badges and the numbers all illegible. */}
-        {exercises.length > 0 && (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {exercises.map((ex, index) => {
-              // The user's own photo always wins over the stock catalog image.
-              const ownPhoto = exercisePhotoUrl(ex.id, ex.photoUpdatedAt);
-              const image = ownPhoto ?? ex.catalog?.images?.[0] ?? null;
-              return (
-                <div
-                  key={ex.id}
-                  className="relative overflow-hidden rounded-2xl border border-teal-950 shadow-lg backdrop-blur-xl"
-                  style={{
-                    animation: `fadeIn 0.4s ease-out ${Math.min(index, 6) * 0.06}s both`,
-                  }}
-                >
-                  {/* Card header — your photo, or the catalog image as a backdrop */}
-                  <div
-                    className={`relative overflow-hidden ${
-                      ownPhoto ? "aspect-[16/9] p-3 sm:aspect-[4/3]" : "p-4"
-                    }`}
-                  >
-                    {image && (
-                      <>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={image}
-                          alt=""
-                          className={`absolute inset-0 h-full w-full object-cover ${
-                            ownPhoto ? "opacity-100" : "opacity-40"
-                          }`}
-                          loading="lazy"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/60 to-transparent" />
-                      </>
-                    )}
-                    <div className="relative z-10 flex items-start justify-between">
-                      <div className="rounded-xl bg-black/30 p-2.5 backdrop-blur-sm">
-                        <BiDumbbell className="text-2xl" />
-                      </div>
-                      {/* 44px controls: these are tapped with a thumb, often
-                          mid-set with one hand. */}
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setPhotoTarget(ex)}
-                          className="tap-scale touch-target flex items-center justify-center rounded-xl bg-black/50 backdrop-blur-sm active:bg-teal-600"
-                          aria-label={ownPhoto ? "Retake photo" : "Take a photo"}
-                        >
-                          <Camera className="h-5 w-5" />
-                        </button>
-                        {ownPhoto && (
-                          <button
-                            onClick={() => setPendingPhotoRemoval(ex)}
-                            className="tap-scale touch-target flex items-center justify-center rounded-xl bg-black/50 backdrop-blur-sm active:bg-neutral-700"
-                            aria-label="Remove your photo"
-                          >
-                            <ImageOff className="h-5 w-5" />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => setPendingDelete(ex)}
-                          disabled={deleteId === ex.id}
-                          className="tap-scale touch-target flex items-center justify-center rounded-xl bg-black/50 backdrop-blur-sm active:bg-red-600 disabled:opacity-50"
-                          aria-label="Delete exercise"
-                        >
-                          <MdDelete className="text-xl" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+        {exercises.length > 0 && shown.length === 0 && (
+          <div className="rounded-2xl border border-neutral-800 px-6 py-10 text-center">
+            <h3 className="mb-2 text-lg font-bold">No matching exercises</h3>
+            <p className="mx-auto mb-5 max-w-md text-sm text-neutral-400">
+              Nothing here matches those filters. Try a different search, or
+              clear them to see all {exercises.length}.
+            </p>
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="tap-scale h-11 rounded-xl border border-neutral-800 px-5 font-semibold text-teal-300"
+            >
+              Clear filters
+            </button>
+          </div>
+        )}
 
-                  {/* Card Body */}
-                  <div className="p-4">
-                    <h3 className="mb-2 line-clamp-2 text-lg font-bold">
-                      {ex.name
-                        .split(" ")
-                        .map(
-                          (word) => word.charAt(0).toUpperCase() + word.slice(1)
-                        )
-                        .join(" ")}
-                    </h3>
-
-                    {(ex.catalog?.category ||
-                      ex.catalog?.equipment ||
-                      ex.category) && (
-                      <div className="mb-3 flex flex-wrap gap-2">
-                        {(ex.catalog?.category ?? ex.category) && (
-                          <span className="rounded-full bg-teal-950/60 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-teal-300 uppercase">
-                            {ex.catalog?.category ?? ex.category}
-                          </span>
-                        )}
-                        {ex.catalog?.equipment && (
-                          <span className="rounded-full bg-neutral-800 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-neutral-300 uppercase">
-                            {ex.catalog.equipment}
-                          </span>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Sets / reps / weight are the prescription — tap +/- to
-                        nudge, or type straight into the number. Weight gets its
-                        own full-width row: it moves in 0.5 kg steps (micro
-                        plates, dumbbells) and is the number you change most. */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <CountStepper
-                        label="Sets"
-                        value={ex.sets || 0}
-                        onChange={(sets) => updatePrescription(ex.id, { sets })}
-                      />
-                      <CountStepper
-                        label="Reps"
-                        value={ex.reps || 0}
-                        onChange={(reps) => updatePrescription(ex.id, { reps })}
-                      />
-                    </div>
-                    <div className="mt-2">
-                      <CountStepper
-                        label="Weight"
-                        value={ex.weight ?? 0}
-                        step={0.5}
-                        max={1000}
-                        unit="kg"
-                        onChange={(weight) =>
-                          // 0 kg means bodyweight — stored as no weight at all.
-                          updatePrescription(ex.id, {
-                            weight: weight > 0 ? weight : null,
-                          })
-                        }
-                      />
-                    </div>
-                    <p className="mt-2 text-center text-xs text-neutral-500">
-                      {volumeLabel(ex)}
-                    </p>
-                    {/* The numbers above are today's prescription; this is the
-                        history of what you've actually put on the bar. */}
-                    <Link
-                      href={`/progress?exercise=${encodeURIComponent(ex.name)}`}
-                      className="tap-scale mt-2 flex h-11 items-center justify-center gap-2 rounded-xl border border-neutral-800 text-sm font-semibold text-neutral-300 active:border-teal-700 active:text-teal-300"
-                    >
-                      <LineChart className="h-4 w-4" />
-                      View progress
-                    </Link>
-                  </div>
-                </div>
-              );
-            })}
+        {shown.length > 0 && (
+          <div
+            className={
+              view === "grid"
+                ? "grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+                : "flex flex-col gap-2"
+            }
+          >
+            {shown.map((ex) => (
+              <ExerciseItem
+                key={ex.id}
+                exercise={ex}
+                view={view}
+                expanded={expandedId === ex.id}
+                onToggle={() =>
+                  setExpandedId((prev) => (prev === ex.id ? null : ex.id))
+                }
+                onChange={(patch) => updatePrescription(ex.id, patch)}
+                onTakePhoto={() => setPhotoTarget(ex)}
+                onRemovePhoto={() => setPendingPhotoRemoval(ex)}
+                onDelete={() => setPendingDelete(ex)}
+                deleting={deleteId === ex.id}
+              />
+            ))}
           </div>
         )}
       </div>
@@ -441,20 +395,6 @@ export default function Exercise() {
         confirmLabel="Save photo"
         saving={savingPhoto}
       />
-
-      {/* Animation Keyframes */}
-      <style jsx>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      `}</style>
     </div>
   );
 }

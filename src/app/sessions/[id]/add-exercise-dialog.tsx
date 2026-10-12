@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,12 +13,19 @@ import { Input } from "@/components/ui/input";
 import { IoMdAdd } from "react-icons/io";
 import { MdFitnessCenter } from "react-icons/md";
 import { FiSearch } from "react-icons/fi";
-import { Library, PenLine, X, ArrowLeft, Plus } from "lucide-react";
+import { Library, PenLine, X, ArrowLeft, Plus, TrendingUp } from "lucide-react";
 import { BiDumbbell } from "react-icons/bi";
 import NumberStepper from "@/components/number-stepper";
 import ExercisePicker, {
   type CatalogItem,
 } from "@/app/exercises/exercise-picker";
+import LoadSuggestion from "@/components/load-suggestion";
+import {
+  formatTarget,
+  historyByKey,
+  historyFor,
+  type ExerciseHistory,
+} from "@/lib/load-progression";
 
 interface LibraryExercise {
   id: number;
@@ -47,6 +54,8 @@ export default function AddExerciseDialog({
 
   const [library, setLibrary] = useState<LibraryExercise[]>([]);
   const [libraryLoading, setLibraryLoading] = useState(false);
+  // Last logged performance per exercise, keyed by normalised name.
+  const [history, setHistory] = useState<ExerciseHistory[]>([]);
   const [query, setQuery] = useState("");
 
   const [selected, setSelected] = useState<LibraryExercise | null>(null);
@@ -74,10 +83,39 @@ export default function AddExerciseDialog({
     }
   }, []);
 
+  const loadHistory = useCallback(async () => {
+    try {
+      const res = await fetch("/api/exercise/history");
+      if (!res.ok) return;
+      const data = await res.json();
+      setHistory(Array.isArray(data.history) ? data.history : []);
+    } catch {
+      // A missing history just means no suggestions — never blocks logging.
+      setHistory([]);
+    }
+  }, []);
+
   useEffect(() => {
     if (!open) return;
     loadLibrary();
-  }, [open, loadLibrary]);
+    loadHistory();
+  }, [open, loadLibrary, loadHistory]);
+
+  const byKey = useMemo(() => historyByKey(history), [history]);
+  // Whatever exercise the dialog is currently pointed at, however it got there.
+  const picked = historyFor(byKey, name);
+  const suggestion = picked?.suggestion ?? null;
+  const applied =
+    suggestion != null &&
+    (suggestion.kind === "weight"
+      ? weight !== "" && Number(weight) === suggestion.weight
+      : reps !== "" && Number(reps) === suggestion.reps);
+
+  const applySuggestion = () => {
+    if (!suggestion) return;
+    if (suggestion.kind === "weight") setWeight(String(suggestion.weight));
+    else setReps(String(suggestion.reps));
+  };
 
   const reset = () => {
     setMode("mine");
@@ -315,6 +353,16 @@ export default function AddExerciseDialog({
                             {ex.sets} × {ex.reps}
                             {ex.weight != null ? ` · ${ex.weight} kg` : ""}
                           </p>
+                          {(() => {
+                            // Done before? Say where to take it, right in the list.
+                            const next = historyFor(byKey, ex.name)?.suggestion;
+                            return next ? (
+                              <p className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-emerald-400">
+                                <TrendingUp className="h-3 w-3" />
+                                Try {formatTarget(next)}
+                              </p>
+                            ) : null;
+                          })()}
                         </div>
                       </button>
                     ))
@@ -433,6 +481,14 @@ export default function AddExerciseDialog({
             (mode === "new" &&
               (newSource === "custom" || catalogId != null))) && (
             <div className="space-y-3">
+              {picked && (
+                <LoadSuggestion
+                  history={picked}
+                  applied={applied}
+                  onApply={applySuggestion}
+                  disabled={loading}
+                />
+              )}
               {selected && (
                 <p className="text-xs text-neutral-400">
                   These numbers are saved back to{" "}

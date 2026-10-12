@@ -23,7 +23,7 @@ import {
   Scale,
   Trash2,
 } from "lucide-react";
-import { handleError } from "@/components/error-handle";
+import { errorMessage, fetchJson } from "@/lib/api";
 import LiftLogMark from "@/components/lift-log-mark";
 import ConfirmSheet from "@/components/confirm-sheet";
 import LogoLoading from "../logo-loading/page";
@@ -83,13 +83,10 @@ function ProgressView() {
   const fetchSummary = useCallback(async () => {
     try {
       setError("");
-      const res = await fetch("/api/progress/summary");
-      if (!res.ok) throw new Error("Failed to load your progress");
-      const json = await res.json();
-      setData(json as ProgressSummary);
+      const json = await fetchJson<ProgressSummary>("/api/progress/summary");
+      setData(json);
     } catch (err) {
-      const msg = handleError(err);
-      setError(typeof msg === "string" ? msg : "An error occurred.");
+      setError(errorMessage(err, "An error occurred."));
     } finally {
       setLoading(false);
     }
@@ -154,8 +151,7 @@ function ProgressView() {
       if (!res.ok) throw new Error("Failed to delete entry");
       await fetchSummary();
     } catch (err) {
-      const msg = handleError(err);
-      setError(typeof msg === "string" ? msg : "An error occurred.");
+      setError(errorMessage(err, "An error occurred."));
     } finally {
       setDeleting(false);
       setPendingDelete(null);

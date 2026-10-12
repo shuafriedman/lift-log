@@ -7,6 +7,7 @@ import Footer from "../footer";
 import AppSidebar from "./app-sidebar";
 import BottomNav from "../nav/bottom-nav";
 import MobileTopBar from "../nav/mobile-top-bar";
+import RequireAuth from "../require-auth";
 
 /** Routes that render bare, with no app chrome at all. */
 const NO_LAYOUT_ROUTES = ["/metrics"];
@@ -19,6 +20,11 @@ const MARKETING_ROUTES = ["/"];
  *
  * The app shell is mobile-first: below `md` it is a top bar plus a fixed
  * bottom tab bar, and the sidebar only appears from `md` up.
+ *
+ * Everything that isn't marketing sits behind RequireAuth. This is the one
+ * place that already knows which routes are the signed-in app, and the guard
+ * wraps the chrome as well as the page — a signed-out visitor gets a single
+ * screen rather than tabs that only lead to more errors.
  */
 export default function ConditionalSidebar({
   children,
@@ -28,7 +34,7 @@ export default function ConditionalSidebar({
   const pathname = usePathname();
 
   if (NO_LAYOUT_ROUTES.includes(pathname)) {
-    return <>{children}</>;
+    return <RequireAuth>{children}</RequireAuth>;
   }
 
   if (MARKETING_ROUTES.includes(pathname)) {
@@ -42,14 +48,16 @@ export default function ConditionalSidebar({
   }
 
   return (
-    <div className="flex min-h-dvh">
-      <AppSidebar />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <MobileTopBar />
-        {/* `pb-nav` keeps content clear of the fixed tab bar on mobile. */}
-        <main className="flex-1 pb-nav">{children}</main>
+    <RequireAuth>
+      <div className="flex min-h-dvh">
+        <AppSidebar />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <MobileTopBar />
+          {/* `pb-nav` keeps content clear of the fixed tab bar on mobile. */}
+          <main className="flex-1 pb-nav">{children}</main>
+        </div>
+        <BottomNav />
       </div>
-      <BottomNav />
-    </div>
+    </RequireAuth>
   );
 }

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import WorkoutDialog from "./workout-dialog";
 import { handleError } from "@/components/error-handle";
+import { errorMessage as messageFor, fetchJson } from "@/lib/api";
 import LogoLoading from "../logo-loading/page";
 import LiftLogMark from "@/components/lift-log-mark";
 import ConfirmSheet from "@/components/confirm-sheet";
@@ -48,15 +49,12 @@ export default function WorkoutsPage() {
     setStatus("loading");
     setErrorMessage("");
     try {
-      const res = await fetch("/api/workout");
-      if (!res.ok) throw new Error("Failed to fetch workouts");
-      const data: Workout[] = await res.json();
+      const data = await fetchJson<Workout[]>("/api/workout");
       setWorkouts(data || []);
       setStatus("success");
     } catch (error) {
-      handleError(error);
       setStatus("error");
-      setErrorMessage("Failed to load workouts");
+      setErrorMessage(messageFor(error, "Could not load your workouts."));
     }
   }, []);
 

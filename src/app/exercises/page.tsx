@@ -11,7 +11,7 @@ import {
   type Exercise,
   type SortKey,
 } from "./exercise-filters";
-import { handleError } from "@/components/error-handle";
+import { errorMessage, fetchJson } from "@/lib/api";
 import { MdFitnessCenter } from "react-icons/md";
 import { BiDumbbell } from "react-icons/bi";
 import { AiOutlineCheckCircle } from "react-icons/ai";
@@ -76,21 +76,18 @@ export default function Exercise() {
     try {
       setLoading(true);
       setError("");
-      const res = await fetch("/api/exercise");
-
-      if (!res.ok) throw new Error(`Failed to fetch exercises (${res.status})`);
-
-      const data = await res.json();
+      const data = await fetchJson<Record<string, unknown> | Exercise[]>(
+        "/api/exercise"
+      );
       if (Array.isArray(data)) {
         setExercises(data);
       } else if (Array.isArray(data.exercises)) {
-        setExercises(data.exercises);
+        setExercises(data.exercises as Exercise[]);
       } else {
         setExercises([]);
       }
     } catch (error: unknown) {
-      const err = handleError(error);
-      setError(typeof err === "string" ? err : "An error occurred.");
+      setError(errorMessage(error, "An error occurred."));
     } finally {
       setLoading(false);
     }
@@ -99,16 +96,10 @@ export default function Exercise() {
   const handleDelete = async (id: number) => {
     try {
       setDeleteId(id);
-      const res = await fetch(`/api/exercise?id=${id}`, {
-        method: "DELETE",
-      });
-
-      if (!res.ok) throw new Error("Failed to delete exercise");
-
+      await fetchJson(`/api/exercise?id=${id}`, { method: "DELETE" });
       setExercises(exercises.filter((ex) => ex.id !== id));
     } catch (error) {
-      const err = handleError(error);
-      setError(typeof err === "string" ? err : "An error occurred.");
+      setError(errorMessage(error, "An error occurred."));
     } finally {
       setDeleteId(null);
       setPendingDelete(null);
@@ -128,8 +119,7 @@ export default function Exercise() {
       );
       setPhotoTarget(null);
     } catch (error) {
-      const err = handleError(error);
-      setError(typeof err === "string" ? err : "Could not save the photo.");
+      setError(errorMessage(error, "Could not save the photo."));
     } finally {
       setSavingPhoto(false);
     }
@@ -158,10 +148,7 @@ export default function Exercise() {
           });
           if (!res.ok) throw new Error("Failed to update exercise");
         } catch (error) {
-          const err = handleError(error);
-          setError(
-            typeof err === "string" ? err : "Could not save sets/reps/weight."
-          );
+          setError(errorMessage(error, "Could not save sets/reps/weight."));
           try {
             const refresh = await fetch("/api/exercise");
             const data = await refresh.json();
@@ -194,8 +181,7 @@ export default function Exercise() {
         prev.map((ex) => (ex.id === id ? { ...ex, photoUpdatedAt: null } : ex))
       );
     } catch (error) {
-      const err = handleError(error);
-      setError(typeof err === "string" ? err : "Could not remove the photo.");
+      setError(errorMessage(error, "Could not remove the photo."));
     } finally {
       setPendingPhotoRemoval(null);
     }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { handleError } from "@/components/error-handle";
+import { errorMessage, fetchJson } from "@/lib/api";
 import LogoLoading from "../logo-loading/page";
 import { Play, Dumbbell, Trash2, ChevronRight } from "lucide-react";
 import ConfirmSheet from "@/components/confirm-sheet";
@@ -39,19 +39,21 @@ export default function SessionsPage() {
   const [status, setStatus] = useState<"loading" | "error" | "success">(
     "loading"
   );
+  const [loadError, setLoadError] = useState("");
   const [starting, setStarting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   const fetchSessions = useCallback(async () => {
     try {
-      const res = await fetch("/api/session");
-      if (!res.ok) throw new Error("Failed to fetch sessions");
-      const data = await res.json();
+      setLoadError("");
+      const data = await fetchJson<{ sessions?: WorkoutSession[] }>(
+        "/api/session"
+      );
       setSessions(Array.isArray(data?.sessions) ? data.sessions : []);
       setStatus("success");
     } catch (error) {
-      handleError(error);
+      setLoadError(errorMessage(error, "Could not load your sessions."));
       setStatus("error");
     }
   }, []);
@@ -65,16 +67,17 @@ export default function SessionsPage() {
   const startSession = useCallback(async () => {
     setStarting(true);
     try {
-      const res = await fetch("/api/session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      if (!res.ok) throw new Error("Failed to start session");
-      const data = await res.json();
+      const data = await fetchJson<{ session: { id: number } }>(
+        "/api/session",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        }
+      );
       router.push(`/sessions/${data.session.id}`);
     } catch (error) {
-      handleError(error);
+      setLoadError(errorMessage(error, "Could not start a session."));
       setStarting(false);
     }
   }, [router]);
@@ -82,11 +85,10 @@ export default function SessionsPage() {
   const deleteSession = useCallback(async (id: number) => {
     setDeleting(true);
     try {
-      const res = await fetch(`/api/session/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Failed to delete session");
+      await fetchJson(`/api/session/${id}`, { method: "DELETE" });
       setSessions((prev) => prev.filter((s) => s.id !== id));
     } catch (error) {
-      handleError(error);
+      setLoadError(errorMessage(error, "Could not delete that session."));
     } finally {
       setDeleting(false);
       setConfirmDelete(null);
@@ -130,9 +132,9 @@ export default function SessionsPage() {
           )}
         </div>
 
-        {status === "error" && (
+        {loadError && (
           <p className="mb-6 text-center text-red-400">
-            Something went wrong.{" "}
+            {loadError}{" "}
             <button className="underline" onClick={fetchSessions}>
               Retry
             </button>
